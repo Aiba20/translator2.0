@@ -765,7 +765,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   });
 
   if (quotaError) {
-    showError('Дневной лимит API исчерпан (10 000 слов). Попробуйте завтра. Быстрые фразы работают без ограничений.');
+    showError('Дневной лимит API исчерпан (10 000 слов). Попробуйте завтра.');
   }
 
   if (successTexts.length) {
@@ -787,7 +787,7 @@ async function doTranslate(text, fromCode, fromText = false) {
 
 /* ============================================================
    ОТОБРАЖЕНИЕ СОХРАНЁННЫХ ПЕРЕВОДОВ (без API)
-   Используется: фразовник + история
+   Используется: история
 ============================================================ */
 function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslations) {
   const targets = TARGETS[modeKey] || TARGETS['ru'];
@@ -1030,8 +1030,8 @@ function replayFromHistory(h) {
     mode = targetMode;
     document.getElementById('tab-ru').classList.toggle('active', mode === 'ru');
     document.getElementById('tab-foreign').classList.toggle('active', mode === 'foreign');
-    document.getElementById('langPillsWrap').style.display  = mode === 'foreign' ? 'block' : 'none';
-    document.getElementById('phrasebookCard').style.display = mode === 'ru'      ? 'block' : 'none';
+    document.getElementById('langPillsLabel').textContent =
+      mode === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
   }
 
   hideError(); resetUI();
