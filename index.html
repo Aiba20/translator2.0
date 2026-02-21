@@ -643,7 +643,12 @@ function startRecording() {
     if (msg) showError(msg);
   };
 
-  recognition.onend = () => { stopRecordingUI(); };
+  recognition.onend = () => {
+    if (!micStarted) {
+      showError('Микрофон не запустился. Установлено ли приложение Google? Ошибка: onend без onstart.');
+    }
+    stopRecordingUI();
+  };
 
   try { recognition.start(); }
   catch(err) { showError('Не удалось запустить микрофон: ' + err.message); }
