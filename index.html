@@ -605,7 +605,10 @@ function startRecording() {
   recognition.interimResults  = true;
   recognition.maxAlternatives = 1;
 
+  let micStarted = false;   // флаг: onstart сработал?
+
   recognition.onstart = () => {
+    micStarted  = true;
     isRecording = true;
     navigator.vibrate && navigator.vibrate(50);
     requestWakeLock();
@@ -630,12 +633,13 @@ function startRecording() {
   recognition.onerror = (e) => {
     stopRecordingUI();
     const msgs = {
-      'not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.',
+      'not-allowed': 'Доступ к микрофону запрещён. Разрешите доступ в настройках Chrome.',
       'no-speech':   'Ничего не услышали. Попробуйте снова.',
-      'network':     'Ошибка сети. Проверьте интернет-соединение.',
-      'aborted':     '',
+      'network':     'Ошибка сети при распознавании речи.',
+      // aborted без onstart = микрофон не запустился (нет Google-сервисов или другая причина)
+      'aborted':     micStarted ? '' : 'Микрофон не запустился. Убедитесь что установлено приложение Google и есть интернет.',
     };
-    const msg = msgs[e.error] ?? ('Ошибка: ' + e.error);
+    const msg = msgs[e.error] ?? ('Ошибка распознавания: ' + e.error);
     if (msg) showError(msg);
   };
 
