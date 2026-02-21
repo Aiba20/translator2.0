@@ -759,6 +759,12 @@ async function translateText(text, from, to) {
   if (translated.toUpperCase().includes('MYMEMORY WARNING')) {
     throw new Error('QUOTA_EXCEEDED');
   }
+  // Для латинских языков (en, tr) проверяем кривую кодировку:
+  // MyMemory иногда возвращает кириллицу в Windows-1251, которая отображается как мусор
+  if (to === 'en') {
+    const nonAscii = (translated.match(/[^\x00-\x7F]/g) || []).length;
+    if (nonAscii > translated.length * 0.1) throw new Error('Ошибка кодировки ответа API');
+  }
   return translated;
 }
 
