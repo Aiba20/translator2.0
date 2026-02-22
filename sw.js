@@ -21,7 +21,7 @@ self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API и внешние ресурсы — всегда из сети, не кэшируем
-  if (url.includes('cognitive.microsofttranslator.com') || url.includes('fonts.google')) return;
+  if (url.includes('generativelanguage.googleapis.com') || url.includes('fonts.google')) return;
 
   // Стратегия: сеть первая → кэш обновляется → при офлайне отдаём кэш
   event.respondWith(

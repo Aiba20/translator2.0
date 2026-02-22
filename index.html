@@ -521,7 +521,7 @@
 
   <!-- ФУТЕР -->
   <footer>
-    Перевод: Azure Translator · Голос: браузерный TTS · Распознавание: Web Speech API<br>
+    Перевод: Gemini 1.5 Flash · Голос: браузерный TTS · Распознавание: Web Speech API<br>
     <div id="wordCounter" class="word-counter"></div>
   </footer>
 
@@ -544,11 +544,19 @@
 /* ============================================================
    КОНФИГ
 ============================================================ */
-const AZURE_KEY      = 'DK9nsXOz6iWNUD1Luyttf7VMzEqX7G9MbMV5qJiu9hdlmuZ2kS0dJQQJ99CBAC5RqLJXJ3w3AAAbACOG2fa8';
-const AZURE_REGION   = 'westeurope';
-const AZURE_ENDPOINT = 'https://api.cognitive.microsofttranslator.com';
-const HISTORY_KEY    = 'lv_history';
-const CHARS_KEY      = 'lv_chars';
+const GEMINI_KEY      = 'AIzaSyCBmq3R97EQvUMIWDWyHErOwZUU7_V-K80';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const HISTORY_KEY     = 'lv_history';
+const CHARS_KEY       = 'lv_chars';
+
+// Названия языков для промпта Gemini
+const LANG_NAMES = {
+  ar: 'Arabic', tr: 'Turkish', en: 'English', ru: 'Russian',
+  fr: 'French', de: 'German', es: 'Spanish', it: 'Italian',
+  'zh-Hans': 'Chinese (Simplified)', ja: 'Japanese', ko: 'Korean',
+  hi: 'Hindi', fa: 'Persian', he: 'Hebrew', pt: 'Portuguese',
+  pl: 'Polish', uk: 'Ukrainian', nl: 'Dutch', ro: 'Romanian', el: 'Greek',
+};
 
 /* ============================================================
    СОСТОЯНИЕ
@@ -819,46 +827,63 @@ function sendText() {
 /* ============================================================
    ПЕРЕВОД — через API
 ============================================================ */
-// Batch-перевод: один запрос для всех целевых языков сразу
-// Возвращает объект { ar: "...", tr: "...", en: "..." }
+// Перевод через Gemini Flash — разговорный стиль, не буквальный
+// Возвращает объект { ar: "...", ar_roman: "...", tr: "...", en: "..." }
 async function translateTexts(text, from, toCodes) {
-  const toParam = toCodes.map(c => `to=${encodeURIComponent(c)}`).join('&');
-  const url  = `${AZURE_ENDPOINT}/translate?api-version=3.0&from=${encodeURIComponent(from)}&${toParam}`;
-  const resp = await fetch(url, {
+  const fromName  = LANG_NAMES[from] || from;
+  const hasArabic = toCodes.includes('ar');
+  const toLangs   = toCodes.map(c => LANG_NAMES[c] || c).join(', ');
+  const jsonKeys  = [
+    ...toCodes.map(c => `"${c}": "translation"`),
+    ...(hasArabic ? ['"ar_roman": "Arabic text in Latin script (romanization)"'] : [])
+  ].join(', ');
+
+  const prompt = `You are a conversational translator for a voice translator app used in travel.
+Translate naturally and idiomatically — as a real person would say it, NOT word-for-word literal.
+Preserve the tone: casual stays casual, polite stays polite.
+
+Source language: ${fromName}
+Translate to: ${toLangs}${hasArabic ? '\nAlso include "ar_roman": romanization of the Arabic translation in Latin script.' : ''}
+
+Text to translate: "${text.replace(/"/g, '\\"')}"
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{${jsonKeys}}`;
+
+  const resp = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_KEY}`, {
     method: 'POST',
-    headers: {
-      'Ocp-Apim-Subscription-Key':    AZURE_KEY,
-      'Ocp-Apim-Subscription-Region': AZURE_REGION,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify([{ Text: text }])
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+    })
   });
   if (!resp.ok) {
     if (resp.status === 429) throw new Error('QUOTA_EXCEEDED');
     throw new Error('Ошибка сети: ' + resp.status);
   }
-  const data = await resp.json();
-  const result = {};
-  (data[0]?.translations || []).forEach(t => { result[t.to] = t.text; });
-  return result;
+  const data    = await resp.json();
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  // Извлекаем JSON — Gemini иногда оборачивает в ```json ... ```
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Неверный ответ Gemini');
+  return JSON.parse(jsonMatch[0]);
 }
 
-// Транслитерация арабского текста → латиница (например: مرحبا → marhaban)
+// Транслитерация арабского для истории (без повторного перевода)
 async function transliterateArabic(text) {
   try {
-    const url  = `${AZURE_ENDPOINT}/transliterate?api-version=3.0&language=ar&fromScript=Arab&toScript=Latn`;
-    const resp = await fetch(url, {
+    const resp = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_KEY}`, {
       method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key':    AZURE_KEY,
-        'Ocp-Apim-Subscription-Region': AZURE_REGION,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify([{ Text: text }])
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Romanize this Arabic text to Latin script (transliteration only, no translation): "${text.replace(/"/g, '\\"')}"\nReturn ONLY the romanized text, nothing else.` }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 200 }
+      })
     });
     if (!resp.ok) return null;
     const data = await resp.json();
-    return data[0]?.text || null;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch { return null; }
 }
 
@@ -919,14 +944,13 @@ async function doTranslate(text, fromCode, fromText = false) {
       el.dataset.translated = t; el.dataset.speech = lang.speech;
       document.getElementById(`actions-${lang.code}`).style.display = 'flex';
       successTexts.push({ code: lang.code, speech: lang.speech, text: t });
-      // Транслитерация для арабского
+      // Транслитерация для арабского — Gemini возвращает ar_roman в том же ответе
       if (lang.code === 'ar') {
-        transliterateArabic(t).then(roman => {
-          if (roman && mySeq === translationSeq) {
-            const tel = document.getElementById(`translit-${lang.code}`);
-            if (tel) tel.textContent = roman;
-          }
-        });
+        const roman = translations['ar_roman'];
+        if (roman) {
+          const tel = document.getElementById(`translit-${lang.code}`);
+          if (tel) tel.textContent = roman;
+        }
       }
     } else {
       el.textContent = 'Не удалось перевести';
@@ -935,7 +959,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   });
 
   if (quotaError) {
-    showError('Месячный лимит Azure исчерпан (2 000 000 символов). Попробуйте в следующем месяце.');
+    showError('Достигнут лимит запросов Gemini (1M токенов/день). Попробуйте завтра.');
   }
 
   if (successTexts.length) {
