@@ -958,7 +958,10 @@ async function doTranslate(text, fromCode, fromText = false) {
    Используется: история
 ============================================================ */
 function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslations) {
-  const targets = TARGETS[modeKey] || TARGETS['ru'];
+  // Собираем только те языки, которые реально есть в сохранённых переводах
+  const targets = savedTranslations
+    .map(s => ALL_LANGS.find(l => l.code === s.code))
+    .filter(Boolean);
   const box = document.getElementById('translationsBox');
   box.innerHTML = '';
   document.getElementById('recognizedCard').style.display = 'block';
@@ -982,6 +985,7 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
           </div>
         </div>
         <div class="tr-text" id="text-${lang.code}" dir="${lang.rtl ? 'rtl' : 'ltr'}"></div>
+        <div class="tr-translit" id="translit-${lang.code}"></div>
         <div class="tr-actions" id="actions-${lang.code}" style="display:flex">
           <button class="tr-btn play-btn" id="play-${lang.code}"
             onclick="speakOne('${lang.code}', '${lang.speech}')">▶ Озвучить</button>
@@ -989,6 +993,8 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
             onclick="showFullscreen('${lang.code}')">👁 Показать</button>
           <button class="tr-btn copy-btn" id="copy-${lang.code}"
             onclick="copyOne('${lang.code}')">📋 Копировать</button>
+          <button class="tr-btn share-btn" id="share-${lang.code}"
+            onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
         </div>
       </div>
     `);
@@ -998,6 +1004,14 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
     el.textContent        = saved.text;
     el.dataset.translated = saved.text;
     el.dataset.speech     = lang.speech;
+
+    // Транслитерация для арабского из истории
+    if (lang.code === 'ar') {
+      transliterateArabic(saved.text).then(roman => {
+        const tel = document.getElementById(`translit-${lang.code}`);
+        if (roman && tel) tel.textContent = roman;
+      });
+    }
 
     successTexts.push({ code: lang.code, speech: lang.speech, text: saved.text });
   });
@@ -1126,6 +1140,7 @@ function scheduleAutoRestart() {
       document.getElementById('tab-foreign').classList.toggle('active', next === 'foreign');
       document.getElementById('langPillsLabel').textContent =
         next === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+      updateSubtitle();
     }
     navigator.vibrate && navigator.vibrate([40, 60, 40]);
     startRecording();
@@ -1365,14 +1380,21 @@ function checkTTSVoices() {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return; // ещё не загружены
 
-  const missing = [];
-  if (!voices.some(v => v.lang.startsWith('ar'))) missing.push('Арабский');
-  if (!voices.some(v => v.lang.startsWith('tr'))) missing.push('Турецкий');
+  // Проверяем все языки из ALL_RU_TARGETS + текущий выбранный
+  const toCheck = ALL_RU_TARGETS.filter(l => l.code !== 'en'); // English всегда есть
+  const missing = toCheck.filter(lang => {
+    const prefix = lang.speech.split('-')[0];
+    return !voices.some(v => v.lang === lang.speech || v.lang.startsWith(prefix));
+  });
 
   const el = document.getElementById('ttsWarn');
   if (!el) return;
-  if (missing.length) {
-    el.textContent = `🔇 Не найдены TTS-голоса: ${missing.join(', ')}. Эти языки не будут озвучены. Установи языковые пакеты: Android → Настройки → Доступность → Синтез речи.`;
+  // Показываем только если отсутствует текущий выбранный язык или базовые (ar, tr)
+  const relevantMissing = missing.filter(l =>
+    l.code === foreignCode || l.code === 'ar' || l.code === 'tr'
+  );
+  if (relevantMissing.length) {
+    el.textContent = `🔇 Нет TTS-голоса для: ${relevantMissing.map(l => l.name).join(', ')}. Установи языковые пакеты: Android → Настройки → Доступность → Синтез речи.`;
     el.classList.add('visible');
   } else {
     el.classList.remove('visible');
