@@ -1218,7 +1218,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   });
 
   if (quotaError) {
-    showError('Достигнут лимит запросов Gemini (1M токенов/день). Попробуйте завтра.');
+    showError('Превышен лимит Gemini (15 запр/мин). Подождите ~1 минуту и попробуйте снова.');
   }
 
   if (successTexts.length) {
