@@ -399,6 +399,156 @@
       text-align: center; color: var(--text3);
       font-size: 0.68rem; padding: 20px 16px 0; line-height: 1.8;
     }
+
+    /* ===================== КНОПКА SWAP ===================== */
+    .swap-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--text2); font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s; flex-shrink: 0;
+    }
+    .swap-btn:hover { background: var(--border); }
+
+    /* ===================== СТИЛЬ ПЕРЕВОДА (тон) ===================== */
+    .tone-btn {
+      padding: 4px 10px; border-radius: 20px;
+      border: 1px solid var(--border); background: transparent;
+      font-size: 0.7rem; cursor: pointer; color: var(--text2);
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .tone-btn.active { background: rgba(var(--accent-rgb),0.15); border-color: var(--accent1); color: var(--accent1); }
+
+    /* ===================== ГРОМКОСТЬ ===================== */
+    .volume-slider {
+      -webkit-appearance: none; flex: 1; height: 4px;
+      border-radius: 2px; background: var(--border); cursor: pointer; outline: none;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--accent1); cursor: pointer;
+    }
+
+    /* ===================== КОНТЕКСТ СИТУАЦИИ ===================== */
+    .context-input {
+      width: 100%; background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 0.78rem; padding: 8px 12px; outline: none;
+      transition: border-color 0.25s; margin-top: 8px;
+    }
+    .context-input:focus { border-color: var(--accent1); }
+    .context-input::placeholder { color: var(--text3); }
+
+    /* ===================== РЕДАКТИРУЕМЫЙ ТЕКСТ ===================== */
+    .recognized-box[contenteditable="true"]:focus { outline: 1px solid var(--accent1); border-radius: var(--radius-sm); }
+    .retranslate-btn {
+      margin-top: 8px; padding: 6px 16px;
+      border: 1px solid var(--accent1); background: rgba(var(--accent-rgb),0.1);
+      color: var(--accent1); border-radius: 20px; font-size: 0.78rem;
+      cursor: pointer; display: none; transition: all 0.2s;
+    }
+    .retranslate-btn.show { display: inline-flex; align-items: center; gap: 4px; }
+
+    /* ===================== ИЗБРАННОЕ ===================== */
+    .fav-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text3); border-radius: 20px; padding: 6px 10px;
+      cursor: pointer; font-size: 0.78rem; transition: all 0.2s;
+    }
+    .fav-btn.starred { color: #f39c12; border-color: #f39c12; background: rgba(243,156,18,0.1); }
+    .fav-section { margin-top: 10px; }
+    .fav-section-title {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 6px;
+    }
+    .fav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-bottom: 4px;
+      cursor: pointer; transition: all 0.2s; font-size: 0.83rem;
+    }
+    .fav-item:hover { border-color: #f39c12; background: rgba(243,156,18,0.05); }
+    .fav-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fav-item-del {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      border: none; background: transparent; color: var(--text3);
+      font-size: 0.75rem; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .fav-item-del:hover { color: var(--danger); background: rgba(var(--danger-rgb),0.12); }
+
+    /* ===================== ФРАЗОВНИК ===================== */
+    .phrase-categories { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; margin-top: 12px; }
+    .phrase-cat-btn {
+      padding: 6px 12px; border: 1px solid var(--border);
+      background: transparent; color: var(--text2);
+      border-radius: 20px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .phrase-cat-btn.active { border-color: var(--accent1); color: var(--accent1); background: rgba(var(--accent-rgb),0.1); }
+    .phrase-list { display: flex; flex-direction: column; gap: 4px; }
+    .phrase-item {
+      padding: 9px 14px; border: 1px solid var(--border);
+      background: var(--bg2); border-radius: var(--radius-sm);
+      font-size: 0.85rem; color: var(--text); cursor: pointer;
+      transition: all 0.2s; text-align: left; width: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .phrase-item:hover, .phrase-item:active { border-color: var(--accent1); background: rgba(var(--accent-rgb),0.08); }
+
+    /* ===================== ЧАТ (ДИАЛОГ) ===================== */
+    .chat-view { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding: 4px 0; }
+    .chat-bubble {
+      max-width: 85%; padding: 10px 14px;
+      border-radius: 18px; font-size: 0.88rem; line-height: 1.5;
+    }
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      color: #fff; border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.partner {
+      align-self: flex-start;
+      background: var(--bg2); border: 1px solid var(--border);
+      color: var(--text); border-bottom-left-radius: 4px;
+    }
+    .chat-bubble-lang { font-size: 0.62rem; opacity: 0.7; margin-bottom: 3px; }
+    .chat-bubble-text { word-break: break-word; }
+    .chat-bubble-translit { font-size: 0.7rem; opacity: 0.7; font-style: italic; margin-top: 3px; }
+    .chat-clear-btn {
+      align-self: center; margin-top: 4px; padding: 5px 14px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text3); border-radius: 20px; font-size: 0.7rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .chat-clear-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* ===================== ОНБОРДИНГ ===================== */
+    .onboard-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.75); display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .onboard-overlay.hidden { display: none; }
+    .onboard-modal {
+      width: 100%; max-width: 360px; background: var(--card);
+      border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 28px 24px; text-align: center;
+    }
+    .onboard-icon { font-size: 3rem; margin-bottom: 12px; }
+    .onboard-title { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .onboard-text { font-size: 0.83rem; color: var(--text2); line-height: 1.65; margin-bottom: 20px; }
+    .onboard-dots { display: flex; justify-content: center; gap: 7px; margin-bottom: 18px; }
+    .onboard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+    .onboard-dot.active { background: var(--accent1); }
+    .onboard-btn {
+      width: 100%; padding: 13px; border: none;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      color: #fff; border-radius: var(--radius-sm); font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+    }
+    .onboard-btn:active { opacity: 0.85; }
+    .onboard-skip { margin-top: 12px; font-size: 0.75rem; color: var(--text3); cursor: pointer; text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -409,7 +559,10 @@
       <h1>🌐 Голосовой Переводчик</h1>
       <span id="headerSubtitle">Рус → 🇸🇦 Арабский</span>
     </div>
-    <button class="theme-btn" id="themeBtn" title="Сменить тему">☀️</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="swap-btn" onclick="swapModes()" title="Поменять языки местами">⇄</button>
+      <button class="theme-btn" id="themeBtn" title="Сменить тему">☀️</button>
+    </div>
   </header>
 
   <div class="content">
@@ -485,6 +638,21 @@
         <span class="controls-label" id="autoModeLabel" style="margin-left:2px">ручной</span>
       </div>
 
+      <!-- Стиль перевода + Громкость -->
+      <div class="controls-row" style="margin-top:6px">
+        <span class="controls-label">Стиль:</span>
+        <button class="tone-btn active" id="tone-casual" onclick="setTone('casual')" title="Разговорный стиль">💬 Разговорный</button>
+        <button class="tone-btn" id="tone-formal" onclick="setTone('formal')" title="Формальный стиль">🤵 Формальный</button>
+      </div>
+      <div class="controls-row" style="margin-top:6px">
+        <span class="controls-label">🔊</span>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1" oninput="setVolume(this.value)" title="Громкость TTS" />
+      </div>
+
+      <!-- Контекст ситуации -->
+      <input class="context-input" id="contextInput" type="text"
+        placeholder="📍 Контекст (необязательно): в ресторане, в аэропорту, деловая встреча..." />
+
       <!-- Ошибка -->
       <div class="msg err" id="errorMsg" style="margin-top:12px"></div>
     </div>
@@ -496,7 +664,8 @@
         <span class="card-label">Распознано</span>
         <button class="icon-btn" onclick="playOriginal()" title="Озвучить оригинал">▶</button>
       </div>
-      <div class="recognized-box" id="recognizedBox"></div>
+      <div class="recognized-box" id="recognizedBox" contenteditable="true" oninput="onRecognizedEdit()"></div>
+      <button class="retranslate-btn" id="retranslateBtn" onclick="retranslateEdited()">↺ Перевести снова</button>
     </div>
 
     <!-- ПЕРЕВОДЫ -->
@@ -506,6 +675,38 @@
         <button class="icon-btn" id="repeatBtn" onclick="repeatTTS()" style="display:none" title="Повторить всё">🔁</button>
       </div>
       <div class="translations" id="translationsBox"></div>
+    </div>
+
+    <!-- ЧАТ (диалог) -->
+    <div class="card" id="chatCard" style="display:none">
+      <div class="results-head">
+        <span class="card-label">💬 История диалога</span>
+        <button class="icon-btn" onclick="clearChat()" title="Очистить чат">✕</button>
+      </div>
+      <div class="chat-view" id="chatView"></div>
+    </div>
+
+    <!-- ФРАЗОВНИК -->
+    <div class="card" id="phrasebookCard">
+      <div class="collapsible-head" onclick="togglePhrasebook()">
+        <span class="card-label">📚 Фразовник</span>
+        <span class="toggle-icon" id="phraseToggleIcon">▼</span>
+      </div>
+      <div id="phrasebookBody" style="display:none">
+        <div class="phrase-categories" id="phraseCategories"></div>
+        <div class="phrase-list" id="phraseList"></div>
+      </div>
+    </div>
+
+    <!-- ИЗБРАННОЕ -->
+    <div class="card" id="favCard" style="display:none">
+      <div class="collapsible-head" onclick="toggleFavSection()">
+        <span class="card-label">⭐ Избранное</span>
+        <span class="toggle-icon" id="favToggleIcon">▼</span>
+      </div>
+      <div id="favBody" style="display:none">
+        <div class="fav-section" id="favList"></div>
+      </div>
     </div>
 
     <!-- ИСТОРИЯ -->
@@ -532,6 +733,18 @@
     <div class="lang-modal" onclick="event.stopPropagation()">
       <div class="lang-modal-title">Выберите язык</div>
       <div class="lang-modal-grid" id="langModalGrid"></div>
+    </div>
+  </div>
+
+  <!-- ОНБОРДИНГ -->
+  <div class="onboard-overlay hidden" id="onboardOverlay">
+    <div class="onboard-modal">
+      <div class="onboard-icon" id="onboardIcon">🌐</div>
+      <div class="onboard-title" id="onboardTitle">Добро пожаловать!</div>
+      <div class="onboard-text" id="onboardText"></div>
+      <div class="onboard-dots" id="onboardDots"></div>
+      <button class="onboard-btn" id="onboardBtn" onclick="onboardNext()">Далее →</button>
+      <div class="onboard-skip" onclick="closeOnboarding()">Пропустить</div>
     </div>
   </div>
 
@@ -571,13 +784,23 @@ let recognition      = null;
 let ttsQueue         = [];
 let ttsPlaying       = false;
 let ttsRate          = 0.88;
+let ttsVolume        = 1.0;
+let translateStyle   = 'casual';  // 'casual' | 'formal'
 let lastSuccessTexts = [];
 let wakeLock         = null;
 let histOpen         = false;
-let translationSeq   = 0;   // защита от гонки: смена режима во время перевода
-let autoMode           = 'off';  // 'off' | 'repeat' | 'dialog'
-let pendingAutoRestart = false;  // true только после реального перевода (не история)
-let autoRestartTimer   = null;   // ссылка на setTimeout авто-рестарта (чтобы отменить)
+let favOpen          = false;
+let translationSeq   = 0;
+let autoMode           = 'off';
+let pendingAutoRestart = false;
+let autoRestartTimer   = null;
+let phrasebookOpen     = false;
+let activePhraseCategory = null;
+let onboardStep        = 0;
+
+// Нелатинские языки — нужна транслитерация
+const NON_LATIN = new Set(['ar','ja','ko','hi','fa','he','zh-Hans','el']);
+const FAVORITES_KEY = 'lv_favorites';
 
 /* ============================================================
    КОНФИГУРАЦИЯ ЯЗЫКОВ
@@ -704,13 +927,15 @@ function shareTranslation(code) {
    СБРОС UI
 ============================================================ */
 function resetUI() {
-  translationSeq++;                                               // обесцениваем текущий перевод
+  translationSeq++;
   stopTTS();
   document.getElementById('recognizedCard').style.display = 'none';
   document.getElementById('resultsCard').style.display    = 'none';
   document.getElementById('recognizedBox').textContent    = '';
   document.getElementById('translationsBox').innerHTML    = '';
   document.getElementById('repeatBtn').style.display      = 'none';
+  const retBtn = document.getElementById('retranslateBtn');
+  if (retBtn) retBtn.classList.remove('show');
   lastSuccessTexts = [];
   hideError();
 }
@@ -829,23 +1054,28 @@ function sendText() {
 /* ============================================================
    ПЕРЕВОД — через API
 ============================================================ */
-// Перевод через Gemini Flash — разговорный стиль, не буквальный
-// Возвращает объект { ar: "...", ar_roman: "...", tr: "...", en: "..." }
+// Перевод через Gemini Flash — разговорный или формальный стиль
+// Возвращает объект { ar: "...", ar_roman: "...", ja: "...", ja_roman: "...", tr: "...", en: "..." }
 async function translateTexts(text, from, toCodes) {
-  const fromName  = LANG_NAMES[from] || from;
-  const hasArabic = toCodes.includes('ar');
-  const toLangs   = toCodes.map(c => LANG_NAMES[c] || c).join(', ');
-  const jsonKeys  = [
-    ...toCodes.map(c => `"${c}": "translation"`),
-    ...(hasArabic ? ['"ar_roman": "Arabic text in Latin script (romanization)"'] : [])
-  ].join(', ');
+  const fromName    = LANG_NAMES[from] || from;
+  const toLangs     = toCodes.map(c => LANG_NAMES[c] || c).join(', ');
+  const nonLatinIn  = toCodes.filter(c => NON_LATIN.has(c));
+  const romanKeys   = nonLatinIn.map(c => `"${c}_roman": "romanization of ${LANG_NAMES[c]||c} in Latin script"`);
+  const jsonKeys    = [...toCodes.map(c => `"${c}": "translation"`), ...romanKeys].join(', ');
+  const context     = (document.getElementById('contextInput')?.value || '').trim();
+  const styleNote   = translateStyle === 'formal'
+    ? 'Use formal, polite register — suitable for business or official situations.'
+    : 'Use natural conversational language — as a real person would say it in everyday life, NOT word-for-word literal.';
+  const contextNote = context ? `\nSituation context: ${context}` : '';
+  const romanNote   = nonLatinIn.length
+    ? `\nFor each non-Latin script language, also include "${nonLatinIn.map(c=>c+'_roman').join('", "')}" with romanized pronunciation.`
+    : '';
 
-  const prompt = `You are a conversational translator for a voice translator app used in travel.
-Translate naturally and idiomatically — as a real person would say it, NOT word-for-word literal.
-Preserve the tone: casual stays casual, polite stays polite.
+  const prompt = `You are a travel translator app powered by AI.
+${styleNote}${contextNote}
 
 Source language: ${fromName}
-Translate to: ${toLangs}${hasArabic ? '\nAlso include "ar_roman": romanization of the Arabic translation in Latin script.' : ''}
+Translate to: ${toLangs}${romanNote}
 
 Text to translate: "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
 
@@ -914,6 +1144,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   document.getElementById('repeatBtn').style.display = 'none';
 
   targets.forEach(lang => {
+    const isFaved = getFavorites().some(f => f.code === lang.code);
     box.insertAdjacentHTML('beforeend', `
       <div class="tr-card" id="card-${lang.code}">
         <div class="tr-header">
@@ -933,6 +1164,8 @@ async function doTranslate(text, fromCode, fromText = false) {
             onclick="copyOne('${lang.code}')">📋 Копировать</button>
           <button class="tr-btn share-btn" id="share-${lang.code}"
             onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
+          <button class="tr-btn fav-btn ${isFaved ? 'starred' : ''}" id="fav-${lang.code}"
+            onclick="toggleFavorite('${lang.code}')">${isFaved ? '★' : '☆'}</button>
         </div>
       </div>
     `);
@@ -963,14 +1196,13 @@ async function doTranslate(text, fromCode, fromText = false) {
       el.dataset.translated = t; el.dataset.speech = lang.speech;
       document.getElementById(`actions-${lang.code}`).style.display = 'flex';
       successTexts.push({ code: lang.code, speech: lang.speech, text: t });
-      // Транслитерация для арабского — Gemini возвращает ar_roman в том же ответе
-      if (lang.code === 'ar') {
-        const roman = translations['ar_roman'];
-        const tel = document.getElementById(`translit-${lang.code}`);
+      // Транслитерация для всех нелатинских языков
+      if (NON_LATIN.has(lang.code)) {
+        const roman = translations[`${lang.code}_roman`];
+        const tel   = document.getElementById(`translit-${lang.code}`);
         if (roman && tel) {
           tel.textContent = roman;
-        } else if (tel && t) {
-          // Fallback: ask Gemini separately if ar_roman was omitted
+        } else if (tel && t && lang.code === 'ar') {
           transliterateArabic(t).then(r => { if (r) tel.textContent = r; });
         }
       }
@@ -990,6 +1222,13 @@ async function doTranslate(text, fromCode, fromText = false) {
     saveHistory(text, fromCode, successTexts);
     trackApiWords(text, targets.length);
     autoPlay(successTexts, true);
+    // Добавляем в чат-историю в режиме диалога
+    if (autoMode === 'dialog') {
+      const firstTr = successTexts[0];
+      const roman   = firstTr && NON_LATIN.has(firstTr.code)
+        ? (document.getElementById(`translit-${firstTr.code}`)?.textContent || '') : '';
+      appendChatBubble(text, fromCode, firstTr?.text || '', firstTr?.code || '', roman);
+    }
     setTimeout(() => {
       document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 150);
@@ -1102,7 +1341,7 @@ function playNext() {
   if (playBtn) playBtn.classList.add('playing');
 
   const u = new SpeechSynthesisUtterance(item.text);
-  u.lang  = item.speech; u.rate = ttsRate; u.pitch = 1;
+  u.lang  = item.speech; u.rate = ttsRate; u.pitch = 1; u.volume = ttsVolume;
 
   const voices = window.speechSynthesis.getVoices();
   const prefix = item.speech.split('-')[0];
@@ -1567,7 +1806,287 @@ if ('serviceWorker' in navigator) {
     const stored = JSON.parse(localStorage.getItem(CHARS_KEY) || '{}');
     renderWordCounter(stored.month === month ? (stored.count || 0) : 0);
   } catch { renderWordCounter(0); }
+
+  // Новые настройки
+  translateStyle = localStorage.getItem('translateStyle') || 'casual';
+  document.getElementById('tone-casual').classList.toggle('active', translateStyle === 'casual');
+  document.getElementById('tone-formal').classList.toggle('active', translateStyle === 'formal');
+
+  ttsVolume = parseFloat(localStorage.getItem('ttsVolume') || '1');
+  const volSlider = document.getElementById('volumeSlider');
+  if (volSlider) volSlider.value = ttsVolume;
+
+  // Онбординг — показываем новым пользователям
+  showOnboarding();
+
+  // Обновляем видимость избранного
+  refreshFavCard();
 })();
+
+/* ============================================================
+   SWAP MODES
+============================================================ */
+function swapModes() {
+  setMode(mode === 'ru' ? 'foreign' : 'ru');
+}
+
+/* ============================================================
+   СТИЛЬ ПЕРЕВОДА (тон)
+============================================================ */
+function setTone(tone) {
+  translateStyle = tone;
+  localStorage.setItem('translateStyle', tone);
+  document.getElementById('tone-casual').classList.toggle('active', tone === 'casual');
+  document.getElementById('tone-formal').classList.toggle('active', tone === 'formal');
+}
+
+/* ============================================================
+   ГРОМКОСТЬ TTS
+============================================================ */
+function setVolume(v) {
+  ttsVolume = parseFloat(v);
+  localStorage.setItem('ttsVolume', ttsVolume);
+}
+
+/* ============================================================
+   РЕДАКТИРОВАНИЕ РАСПОЗНАННОГО ТЕКСТА
+============================================================ */
+function onRecognizedEdit() {
+  const box = document.getElementById('recognizedBox');
+  const btn = document.getElementById('retranslateBtn');
+  if (btn) btn.classList.toggle('show', (box.textContent || box.innerText || '').trim().length > 0);
+}
+function retranslateEdited() {
+  const box  = document.getElementById('recognizedBox');
+  const text = (box.textContent || box.innerText || '').trim();
+  if (!text) return;
+  box.classList.remove('empty');
+  doTranslate(text, getInputCode(), true);
+}
+
+/* ============================================================
+   ИЗБРАННОЕ
+============================================================ */
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || []; }
+  catch { return []; }
+}
+function toggleFavorite(code) {
+  const el = document.getElementById(`text-${code}`);
+  if (!el) return;
+  const text = el.dataset.translated || el.textContent;
+  const lang = ALL_LANGS.find(l => l.code === code);
+  const srcEl = document.getElementById('recognizedBox');
+  const srcText = srcEl ? (srcEl.textContent || srcEl.innerText || '').trim() : '';
+  const favorites = getFavorites();
+  const existing = favorites.findIndex(f => f.code === code && f.text === text);
+  const btn = document.getElementById(`fav-${code}`);
+  if (existing >= 0) {
+    favorites.splice(existing, 1);
+    if (btn) { btn.textContent = '☆'; btn.classList.remove('starred'); }
+  } else {
+    favorites.unshift({ id: Date.now(), code, text, srcText, langLabel: lang ? `${lang.flag} ${lang.name}` : code,
+      ts: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }) });
+    if (favorites.length > 50) favorites.pop();
+    if (btn) { btn.textContent = '★'; btn.classList.add('starred'); }
+  }
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch {}
+  refreshFavCard();
+}
+function refreshFavCard() {
+  const favs = getFavorites();
+  const card = document.getElementById('favCard');
+  if (card) card.style.display = favs.length ? 'block' : 'none';
+  if (favOpen) renderFavorites();
+}
+function toggleFavSection() {
+  favOpen = !favOpen;
+  document.getElementById('favBody').style.display = favOpen ? 'block' : 'none';
+  document.getElementById('favToggleIcon').classList.toggle('open', favOpen);
+  if (favOpen) renderFavorites();
+}
+function renderFavorites() {
+  const list  = document.getElementById('favList');
+  const favs  = getFavorites();
+  list.innerHTML = '';
+  if (!favs.length) { list.innerHTML = '<div class="history-empty">Нет избранных</div>'; return; }
+  favs.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'fav-item';
+    item.innerHTML = `
+      <span style="font-size:0.8rem;flex-shrink:0">${f.langLabel}</span>
+      <span class="fav-item-text">${f.text}</span>
+      <button class="fav-item-del" title="Удалить" onclick="event.stopPropagation();removeFavorite(${f.id})">✕</button>`;
+    item.onclick = () => speakFavorite(f);
+    list.appendChild(item);
+  });
+}
+function removeFavorite(id) {
+  const favs = getFavorites().filter(f => f.id !== id);
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs)); } catch {}
+  refreshFavCard();
+}
+function speakFavorite(f) {
+  const lang = ALL_LANGS.find(l => l.code === f.code);
+  if (!lang) return;
+  stopTTS();
+  autoPlay([{ code: f.code, speech: lang.speech, text: f.text }]);
+}
+
+/* ============================================================
+   ФРАЗОВНИК
+============================================================ */
+const PHRASES = {
+  '✈️ Аэропорт': [
+    'Где регистрация на рейс?','Где выход на посадку?','Мой рейс задерживается',
+    'Где забрать багаж?','Я потерял багаж','Где паспортный контроль?',
+    'У меня пересадка','Сколько стоит такси до города?',
+  ],
+  '🏨 Отель': [
+    'Я забронировал номер','Когда можно заселиться?','Можно поздно выехать?',
+    'Где лифт?','Мне нужно дополнительное полотенце','Кондиционер не работает',
+    'Когда завтрак?','Вызовите такси, пожалуйста',
+  ],
+  '🍽️ Ресторан': [
+    'Столик на двоих, пожалуйста','Меню, пожалуйста','Что вы рекомендуете?',
+    'Я вегетарианец','Без орехов, пожалуйста','Счёт, пожалуйста',
+    'Это очень вкусно','Можно воды?',
+  ],
+  '🚕 Транспорт': [
+    'Отвезите меня в аэропорт','Остановите здесь, пожалуйста','Сколько стоит поездка?',
+    'Где остановка автобуса?','Где метро?','Как доехать до центра?',
+    'Вызовите такси','Мне нужно на вокзал',
+  ],
+  '🛒 Покупки': [
+    'Сколько это стоит?','Дорого. Можно дешевле?','Я просто смотрю',
+    'Есть размер меньше?','Где примерочная?','Я возьму это',
+    'Можно карточкой?','Есть скидка?',
+  ],
+  '🚨 Помощь': [
+    'Вызовите скорую помощь','Вызовите полицию','Мне плохо',
+    'Я потерялся','Меня обокрали','Где больница?',
+    'Нужна помощь','Позвоните в посольство России',
+  ],
+};
+function togglePhrasebook() {
+  phrasebookOpen = !phrasebookOpen;
+  document.getElementById('phrasebookBody').style.display = phrasebookOpen ? 'block' : 'none';
+  document.getElementById('phraseToggleIcon').classList.toggle('open', phrasebookOpen);
+  if (phrasebookOpen && !activePhraseCategory) {
+    renderPhraseCategories();
+    selectPhraseCategory(Object.keys(PHRASES)[0]);
+  }
+}
+function renderPhraseCategories() {
+  const container = document.getElementById('phraseCategories');
+  container.innerHTML = '';
+  Object.keys(PHRASES).forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'phrase-cat-btn' + (cat === activePhraseCategory ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => selectPhraseCategory(cat);
+    container.appendChild(btn);
+  });
+}
+function selectPhraseCategory(cat) {
+  activePhraseCategory = cat;
+  document.querySelectorAll('.phrase-cat-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === cat);
+  });
+  const list = document.getElementById('phraseList');
+  list.innerHTML = '';
+  (PHRASES[cat] || []).forEach(phrase => {
+    const btn = document.createElement('button');
+    btn.className = 'phrase-item';
+    btn.textContent = phrase;
+    btn.onclick = () => sendPhrase(phrase);
+    list.appendChild(btn);
+  });
+}
+function sendPhrase(phrase) {
+  hideError(); resetUI();
+  document.getElementById('recognizedCard').style.display = 'block';
+  const rbox = document.getElementById('recognizedBox');
+  rbox.textContent = phrase; rbox.classList.remove('empty');
+  doTranslate(phrase, 'ru', true);
+  setTimeout(() => {
+    document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 300);
+}
+
+/* ============================================================
+   ЧАТ-ДИАЛОГ
+============================================================ */
+function appendChatBubble(origText, origCode, translText, translCode, roman) {
+  const chatCard = document.getElementById('chatCard');
+  const chatView = document.getElementById('chatView');
+  if (!chatCard || !chatView) return;
+  chatCard.style.display = 'block';
+  const isUser = (origCode === 'ru');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble ' + (isUser ? 'user' : 'partner');
+  const origLang = ALL_LANGS.find(l => l.code === origCode);
+  const trLang   = ALL_LANGS.find(l => l.code === translCode);
+  bubble.innerHTML = `
+    <div class="chat-bubble-lang">${origLang ? origLang.flag : ''} ${origLang ? origLang.name : origCode}</div>
+    <div class="chat-bubble-text">${escapeHtml(origText)}</div>
+    ${translText ? `<div class="chat-bubble-lang" style="margin-top:6px">${trLang ? trLang.flag : ''} ${trLang ? trLang.name : translCode}</div>
+    <div class="chat-bubble-text" style="font-style:italic;opacity:0.9">${escapeHtml(translText)}</div>` : ''}
+    ${roman ? `<div class="chat-bubble-translit">${escapeHtml(roman)}</div>` : ''}`;
+  chatView.appendChild(bubble);
+  bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function clearChat() {
+  const chatView = document.getElementById('chatView');
+  const chatCard = document.getElementById('chatCard');
+  if (chatView) chatView.innerHTML = '';
+  if (chatCard) chatCard.style.display = 'none';
+}
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ============================================================
+   ОНБОРДИНГ
+============================================================ */
+const ONBOARD_STEPS = [
+  { icon: '🌐', title: 'Добро пожаловать!',  text: 'LinguaVox — карманный переводчик с ИИ Gemini. Разговорный стиль, мгновенный перевод, работает в путешествиях.' },
+  { icon: '🎤', title: 'Голосовой ввод',      text: 'Нажмите 🎤 и говорите по-русски. Перевод появится через секунду. Покажите телефон собеседнику.' },
+  { icon: '💬', title: 'Режим диалога',       text: 'Включите режим 💬 — приложение будет само чередовать вас и собеседника. Не нужно нажимать кнопки!' },
+  { icon: '📚', title: 'Фразовник',           text: 'Не знаете как начать? В фразовнике — готовые фразы для ресторана, аэропорта, гостиницы и экстренных случаев.' },
+  { icon: '✅', title: 'Всё готово!',         text: 'Добавьте страницу на главный экран (Android: меню браузера → «Добавить на главный экран»). Работает как приложение!' },
+];
+function showOnboarding() {
+  if (localStorage.getItem('onboardDone')) return;
+  const overlay = document.getElementById('onboardOverlay');
+  if (!overlay) return;
+  onboardStep = 0;
+  overlay.classList.remove('hidden');
+  renderOnboardStep();
+}
+function renderOnboardStep() {
+  const step = ONBOARD_STEPS[onboardStep];
+  document.getElementById('onboardIcon').textContent  = step.icon;
+  document.getElementById('onboardTitle').textContent = step.title;
+  document.getElementById('onboardText').textContent  = step.text;
+  document.getElementById('onboardBtn').textContent   = onboardStep < ONBOARD_STEPS.length - 1 ? 'Далее →' : '🚀 Начать!';
+  const dots = document.getElementById('onboardDots');
+  dots.innerHTML = '';
+  ONBOARD_STEPS.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'onboard-dot' + (i === onboardStep ? ' active' : '');
+    dots.appendChild(dot);
+  });
+}
+function onboardNext() {
+  if (onboardStep < ONBOARD_STEPS.length - 1) { onboardStep++; renderOnboardStep(); }
+  else closeOnboarding();
+}
+function closeOnboarding() {
+  localStorage.setItem('onboardDone', '1');
+  const overlay = document.getElementById('onboardOverlay');
+  if (overlay) overlay.classList.add('hidden');
+}
 </script>
 </body>
 </html>
