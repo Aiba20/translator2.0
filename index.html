@@ -863,14 +863,19 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
     throw new Error('Ошибка сети: ' + resp.status);
   }
   const data    = await resp.json();
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (data.error) throw new Error(data.error.message || 'Ошибка API Gemini');
+  const candidate = data.candidates?.[0];
+  if (!candidate) throw new Error('Gemini не вернул ответ (пустой candidates)');
+  if (candidate.finishReason === 'SAFETY') throw new Error('Gemini заблокировал запрос (SAFETY filter)');
+  const content = candidate.content?.parts?.[0]?.text || '';
+  if (!content) throw new Error('Gemini вернул пустой текст');
   // Извлекаем JSON — Gemini иногда оборачивает в ```json ... ```
   const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Неверный ответ Gemini');
+  if (!jsonMatch) throw new Error('Нет JSON в ответе Gemini: ' + content.slice(0, 100));
   try {
     return JSON.parse(jsonMatch[0]);
   } catch {
-    throw new Error('Не удалось разобрать ответ Gemini');
+    throw new Error('Не удалось разобрать JSON: ' + jsonMatch[0].slice(0, 100));
   }
 }
 
@@ -933,7 +938,11 @@ async function doTranslate(text, fromCode, fromText = false) {
   try {
     translations = await translateTexts(text, fromCode, targets.map(t => t.code));
   } catch(e) {
-    if (e.message === 'QUOTA_EXCEEDED') quotaError = true;
+    if (e.message === 'QUOTA_EXCEEDED') {
+      quotaError = true;
+    } else {
+      showError('Ошибка перевода: ' + e.message);
+    }
   }
 
   document.getElementById('micBtn').classList.remove('busy');
