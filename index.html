@@ -845,7 +845,7 @@ Preserve the tone: casual stays casual, polite stays polite.
 Source language: ${fromName}
 Translate to: ${toLangs}${hasArabic ? '\nAlso include "ar_roman": romanization of the Arabic translation in Latin script.' : ''}
 
-Text to translate: "${text.replace(/"/g, '\\"')}"
+Text to translate: "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {${jsonKeys}}`;
@@ -867,7 +867,11 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   // Извлекаем JSON — Gemini иногда оборачивает в ```json ... ```
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Неверный ответ Gemini');
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error('Не удалось разобрать ответ Gemini');
+  }
 }
 
 // Транслитерация арабского для истории (без повторного перевода)
@@ -877,7 +881,7 @@ async function transliterateArabic(text) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Romanize this Arabic text to Latin script (transliteration only, no translation): "${text.replace(/"/g, '\\"')}"\nReturn ONLY the romanized text, nothing else.` }] }],
+        contents: [{ parts: [{ text: `Romanize this Arabic text to Latin script (transliteration only, no translation): "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"\nReturn ONLY the romanized text, nothing else.` }] }],
         generationConfig: { temperature: 0, maxOutputTokens: 200 }
       })
     });
@@ -947,9 +951,12 @@ async function doTranslate(text, fromCode, fromText = false) {
       // Транслитерация для арабского — Gemini возвращает ar_roman в том же ответе
       if (lang.code === 'ar') {
         const roman = translations['ar_roman'];
-        if (roman) {
-          const tel = document.getElementById(`translit-${lang.code}`);
-          if (tel) tel.textContent = roman;
+        const tel = document.getElementById(`translit-${lang.code}`);
+        if (roman && tel) {
+          tel.textContent = roman;
+        } else if (tel && t) {
+          // Fallback: ask Gemini separately if ar_roman was omitted
+          transliterateArabic(t).then(r => { if (r) tel.textContent = r; });
         }
       }
     } else {
@@ -1393,7 +1400,7 @@ function renderWordCounter(count) {
   const limit = 2_000_000;
   const pct   = count / limit;
   if (pct < 0.75) { el.textContent = ''; return; }  // показываем только при >75%
-  el.textContent = `⚠️ Лимит Azure: использовано ${count.toLocaleString('ru')} / ${limit.toLocaleString('ru')} символов`;
+  el.textContent = `⚠️ Лимит Gemini: использовано ${count.toLocaleString('ru')} / ${limit.toLocaleString('ru')} символов`;
   el.className   = 'word-counter' + (pct >= 0.9 ? ' danger' : ' warn');
 }
 
@@ -1532,7 +1539,7 @@ if ('serviceWorker' in navigator) {
   // TTS скорость
   const savedRate = parseFloat(localStorage.getItem('ttsRate') || '0.88');
   ttsRate = savedRate;
-  document.querySelectorAll('.speed-btn').forEach(btn => {
+  document.querySelectorAll('.speed-btn:not(.auto-btn)').forEach(btn => {
     btn.classList.toggle('active', parseFloat(btn.dataset.rate) === savedRate);
   });
 
