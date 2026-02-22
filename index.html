@@ -724,7 +724,7 @@
 
   <!-- ФУТЕР -->
   <footer>
-    Перевод: Gemini 1.5 Flash · Голос: браузерный TTS · Распознавание: Web Speech API<br>
+    Перевод: Gemini 2.0 Flash · Голос: браузерный TTS · Распознавание: Web Speech API<br>
     <div id="wordCounter" class="word-counter"></div>
   </footer>
 
@@ -1115,14 +1115,16 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   }
 }
 
-// Транслитерация арабского для истории (без повторного перевода)
-async function transliterateArabic(text) {
+// Транслитерация нелатинского текста для истории (без повторного перевода)
+async function transliterateScript(text, langCode) {
+  const lang = ALL_LANGS.find(l => l.code === langCode);
+  const langName = lang ? lang.name : 'the given';
   try {
     const resp = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Romanize this Arabic text to Latin script (transliteration only, no translation): "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"\nReturn ONLY the romanized text, nothing else.` }] }],
+        contents: [{ parts: [{ text: `Romanize this ${langName} text to Latin script (transliteration only, no translation): "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"\nReturn ONLY the romanized text, nothing else.` }] }],
         generationConfig: { temperature: 0, maxOutputTokens: 200 }
       })
     });
@@ -1205,8 +1207,8 @@ async function doTranslate(text, fromCode, fromText = false) {
         const tel   = document.getElementById(`translit-${lang.code}`);
         if (roman && tel) {
           tel.textContent = roman;
-        } else if (tel && t && lang.code === 'ar') {
-          transliterateArabic(t).then(r => { if (r) tel.textContent = r; });
+        } else if (tel && t) {
+          transliterateScript(t, lang.code).then(r => { if (r) tel.textContent = r; });
         }
       }
     } else {
@@ -1283,6 +1285,8 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
             onclick="copyOne('${lang.code}')">📋 Копировать</button>
           <button class="tr-btn share-btn" id="share-${lang.code}"
             onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
+          <button class="tr-btn fav-btn" id="fav-${lang.code}"
+            onclick="toggleFavorite('${lang.code}')">☆</button>
         </div>
       </div>
     `);
@@ -1293,9 +1297,14 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
     el.dataset.translated = saved.text;
     el.dataset.speech     = lang.speech;
 
-    // Транслитерация для арабского из истории
-    if (lang.code === 'ar') {
-      transliterateArabic(saved.text).then(roman => {
+    // Обновляем звезду избранного
+    const isFaved = getFavorites().some(f => f.code === lang.code && f.text === saved.text);
+    const favBtn  = document.getElementById(`fav-${lang.code}`);
+    if (favBtn) { favBtn.textContent = isFaved ? '★' : '☆'; favBtn.classList.toggle('starred', isFaved); }
+
+    // Транслитерация для всех нелатинских языков из истории
+    if (NON_LATIN.has(lang.code)) {
+      transliterateScript(saved.text, lang.code).then(roman => {
         const tel = document.getElementById(`translit-${lang.code}`);
         if (roman && tel) tel.textContent = roman;
       });
@@ -1377,6 +1386,7 @@ function playNext() {
 function speakOne(code, speechCode) {
   stopTTS();
   const el   = document.getElementById(`text-${code}`);
+  if (!el) return;
   const text = el.dataset.translated || el.textContent;
   if (!text || el.classList.contains('loading') || el.classList.contains('err-text')) return;
   autoPlay([{ code, speech: speechCode, text }]);
