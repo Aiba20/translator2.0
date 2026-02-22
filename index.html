@@ -1144,7 +1144,6 @@ async function doTranslate(text, fromCode, fromText = false) {
   document.getElementById('repeatBtn').style.display = 'none';
 
   targets.forEach(lang => {
-    const isFaved = getFavorites().some(f => f.code === lang.code);
     box.insertAdjacentHTML('beforeend', `
       <div class="tr-card" id="card-${lang.code}">
         <div class="tr-header">
@@ -1164,8 +1163,8 @@ async function doTranslate(text, fromCode, fromText = false) {
             onclick="copyOne('${lang.code}')">📋 Копировать</button>
           <button class="tr-btn share-btn" id="share-${lang.code}"
             onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
-          <button class="tr-btn fav-btn ${isFaved ? 'starred' : ''}" id="fav-${lang.code}"
-            onclick="toggleFavorite('${lang.code}')">${isFaved ? '★' : '☆'}</button>
+          <button class="tr-btn fav-btn" id="fav-${lang.code}"
+            onclick="toggleFavorite('${lang.code}')">☆</button>
         </div>
       </div>
     `);
@@ -1196,6 +1195,10 @@ async function doTranslate(text, fromCode, fromText = false) {
       el.dataset.translated = t; el.dataset.speech = lang.speech;
       document.getElementById(`actions-${lang.code}`).style.display = 'flex';
       successTexts.push({ code: lang.code, speech: lang.speech, text: t });
+      // Обновляем звезду: проверяем именно этот текст
+      const isFaved = getFavorites().some(f => f.code === lang.code && f.text === t);
+      const favBtn  = document.getElementById(`fav-${lang.code}`);
+      if (favBtn) { favBtn.textContent = isFaved ? '★' : '☆'; favBtn.classList.toggle('starred', isFaved); }
       // Транслитерация для всех нелатинских языков
       if (NON_LATIN.has(lang.code)) {
         const roman = translations[`${lang.code}_roman`];
@@ -1854,11 +1857,13 @@ function setVolume(v) {
 function onRecognizedEdit() {
   const box = document.getElementById('recognizedBox');
   const btn = document.getElementById('retranslateBtn');
-  if (btn) btn.classList.toggle('show', (box.textContent || box.innerText || '').trim().length > 0);
+  if (!box || !btn) return;
+  btn.classList.toggle('show', (box.textContent || '').trim().length > 0);
 }
 function retranslateEdited() {
-  const box  = document.getElementById('recognizedBox');
-  const text = (box.textContent || box.innerText || '').trim();
+  const box = document.getElementById('recognizedBox');
+  if (!box) return;
+  const text = (box.textContent || '').trim();
   if (!text) return;
   box.classList.remove('empty');
   doTranslate(text, getInputCode(), true);
@@ -1877,7 +1882,7 @@ function toggleFavorite(code) {
   const text = el.dataset.translated || el.textContent;
   const lang = ALL_LANGS.find(l => l.code === code);
   const srcEl = document.getElementById('recognizedBox');
-  const srcText = srcEl ? (srcEl.textContent || srcEl.innerText || '').trim() : '';
+  const srcText = srcEl ? (srcEl.textContent || '').trim() : '';
   const favorites = getFavorites();
   const existing = favorites.findIndex(f => f.code === code && f.text === text);
   const btn = document.getElementById(`fav-${code}`);
@@ -1914,9 +1919,9 @@ function renderFavorites() {
     const item = document.createElement('div');
     item.className = 'fav-item';
     item.innerHTML = `
-      <span style="font-size:0.8rem;flex-shrink:0">${f.langLabel}</span>
-      <span class="fav-item-text">${f.text}</span>
-      <button class="fav-item-del" title="Удалить" onclick="event.stopPropagation();removeFavorite(${f.id})">✕</button>`;
+      <span style="font-size:0.8rem;flex-shrink:0">${escapeHtml(f.langLabel || '')}</span>
+      <span class="fav-item-text">${escapeHtml(f.text || '')}</span>
+      <button class="fav-item-del" title="Удалить" onclick="event.stopPropagation();removeFavorite(${Number(f.id)})">✕</button>`;
     item.onclick = () => speakFavorite(f);
     list.appendChild(item);
   });
