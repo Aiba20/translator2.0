@@ -244,6 +244,8 @@
     .tr-text[dir="rtl"] {
       font-size: 1.08rem;
       font-family: 'Noto Naskh Arabic', 'Segoe UI', 'Arial', sans-serif;
+      text-align: right;
+      direction: rtl;
     }
     .tr-text.loading { color: var(--text3); font-style: italic; animation: blink 1.2s infinite; }
     .tr-text.err-text { color: var(--err-text); font-style: italic; }
@@ -872,10 +874,14 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   // Извлекаем JSON — Gemini иногда оборачивает в ```json ... ```
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Нет JSON в ответе Gemini: ' + content.slice(0, 100));
+  // Gemini иногда вставляет буквальные переносы строк внутри JSON-строк → sanitize
+  const sanitized = jsonMatch[0].replace(/("(?:[^"\\]|\\.)*")|[\r\n]/g,
+    (m, str) => str ? str.replace(/\n/g, '\\n').replace(/\r/g, '') : m
+  );
   try {
-    return JSON.parse(jsonMatch[0]);
+    return JSON.parse(sanitized);
   } catch {
-    throw new Error('Не удалось разобрать JSON: ' + jsonMatch[0].slice(0, 100));
+    throw new Error('Не удалось разобрать JSON: ' + sanitized.slice(0, 120));
   }
 }
 
@@ -1111,8 +1117,8 @@ function playNext() {
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
   }, 500);
 
-  const words    = item.text.split(/\s+/).length;
-  const timeout  = Math.max(words * 600, 5000) + 2000;
+  const words    = Math.max(item.text.length / 4, item.text.split(/\s+/).length); // CJK-safe
+  const timeout  = Math.max(words * 700, 8000) + 3000;
   const watchdog = setTimeout(() => {
     clearInterval(resumeTimer);
     window.speechSynthesis.cancel();
@@ -1249,7 +1255,7 @@ function saveHistory(text, fromCode, successTexts) {
     translations: successTexts.map(t => ({ code: t.code, speech: t.speech, text: t.text })),
   });
   if (history.length > 15) history.pop();
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* storage full */ }
   if (histOpen) renderHistory();
 }
 
@@ -1549,7 +1555,7 @@ if ('serviceWorker' in navigator) {
   const savedRate = parseFloat(localStorage.getItem('ttsRate') || '0.88');
   ttsRate = savedRate;
   document.querySelectorAll('.speed-btn:not(.auto-btn)').forEach(btn => {
-    btn.classList.toggle('active', parseFloat(btn.dataset.rate) === savedRate);
+    btn.classList.toggle('active', Math.abs(parseFloat(btn.dataset.rate) - savedRate) < 0.01);
   });
 
   // Состояние сети
