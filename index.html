@@ -265,6 +265,12 @@
     .copy-btn { background: transparent; border: 1px solid var(--border); color: var(--text2); }
     .copy-btn:hover { background: var(--bg3); }
     .copy-btn.copied { color: var(--success); border-color: var(--success); }
+    .share-btn { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .share-btn:hover { background: var(--bg3); }
+    .tr-translit {
+      font-size: 0.78rem; color: var(--text3); font-style: italic;
+      margin: 2px 0 6px; letter-spacing: 0.3px; min-height: 0;
+    }
 
     /* ===================== RESULTS HEADER ===================== */
     .results-head {
@@ -290,6 +296,35 @@
     .toggle-icon { font-size: 0.65rem; color: var(--text3); transition: transform 0.25s; }
     .toggle-icon.open { transform: rotate(180deg); }
 
+    /* ===================== МОДАЛЬНОЕ ОКНО ЯЗЫКОВ ===================== */
+    .lang-modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.55); display: none;
+      align-items: flex-end; justify-content: center;
+    }
+    .lang-modal-overlay.open { display: flex; }
+    .lang-modal {
+      width: 100%; max-width: 480px; background: var(--card);
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid var(--border); padding: 20px 16px 32px;
+      max-height: 70vh; overflow-y: auto;
+    }
+    .lang-modal-title {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 14px;
+    }
+    .lang-modal-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+    }
+    .lang-modal-item {
+      padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 0.85rem; background: transparent; color: var(--text);
+      text-align: left; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .lang-modal-item:hover, .lang-modal-item:active { border-color: var(--accent1); background: rgba(var(--accent-rgb), 0.08); }
+
     /* ===================== ИСТОРИЯ ===================== */
     .history-body { margin-top: 12px; }
     .history-list { display: flex; flex-direction: column; gap: 6px; }
@@ -306,6 +341,7 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .history-ts { font-size: 0.68rem; color: var(--text3); flex-shrink: 0; }
+    .history-langs { font-size: 0.78rem; flex-shrink: 0; opacity: 0.6; }
     .history-empty {
       text-align: center; color: var(--text3);
       font-size: 0.82rem; padding: 16px 0; font-style: italic;
@@ -317,6 +353,14 @@
       cursor: pointer; font-size: 0.72rem; transition: all 0.2s;
     }
     .history-clear-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .history-del {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      border: none; background: transparent; color: var(--text3);
+      font-size: 0.75rem; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .history-del:hover { color: var(--danger); background: rgba(var(--danger-rgb), 0.12); }
 
     /* ===================== FULLSCREEN ===================== */
     .fs-overlay {
@@ -361,7 +405,7 @@
   <header>
     <div class="header-title">
       <h1>🌐 Голосовой Переводчик</h1>
-      <span>Русский ↔ Арабский · Турецкий · Английский</span>
+      <span id="headerSubtitle">Рус → 🇸🇦 Арабский</span>
     </div>
     <button class="theme-btn" id="themeBtn" title="Сменить тему">☀️</button>
   </header>
@@ -378,16 +422,16 @@
 
     <!-- ПРЕДУПРЕЖДЕНИЕ: нет интернета -->
     <div class="msg warn" id="offlineWarn">
-      📵 Нет интернета. Перевод недоступен. Быстрые фразы работают без интернета.
+      📵 Нет интернета. Перевод недоступен.
     </div>
 
     <!-- ВКЛАДКИ -->
     <div class="tabs">
       <button class="tab active" id="tab-ru" onclick="setMode('ru')">
-        🇷🇺 Я говорю<br>по-русски
+        Я говорю<br>по-русски
       </button>
       <button class="tab" id="tab-foreign" onclick="setMode('foreign')">
-        🌍 Мне говорят<br>на другом языке
+        Мне говорят<br>на другом языке
       </button>
     </div>
 
@@ -401,6 +445,7 @@
           <button class="lang-pill active" data-lang="ar-SA" data-code="ar" onclick="selectForeignLang(this)">🇸🇦 Арабский</button>
           <button class="lang-pill" data-lang="tr-TR" data-code="tr" onclick="selectForeignLang(this)">🇹🇷 Турецкий</button>
           <button class="lang-pill" data-lang="en-US" data-code="en" onclick="selectForeignLang(this)">🇬🇧 Английский</button>
+          <button class="lang-pill" id="otherLangPill" onclick="showLangModal()">＋ Другой</button>
         </div>
         <div style="height:16px"></div>
       </div>
@@ -429,6 +474,15 @@
         <button class="speed-btn" data-rate="1.1"  onclick="setTtsRate(this)" title="Быстро">🐇</button>
       </div>
 
+      <!-- Авто-режим -->
+      <div class="controls-row" style="margin-top:6px">
+        <span class="controls-label">Режим:</span>
+        <button class="speed-btn auto-btn active" data-auto="off"    onclick="setAutoMode(this)" title="Ручной — запись только по нажатию">✕</button>
+        <button class="speed-btn auto-btn"        data-auto="repeat" onclick="setAutoMode(this)" title="Авто-запись — после перевода снова слушает">🔁</button>
+        <button class="speed-btn auto-btn"        data-auto="dialog" onclick="setAutoMode(this)" title="Диалог — чередует твой язык и язык собеседника">💬</button>
+        <span class="controls-label" id="autoModeLabel" style="margin-left:2px">ручной</span>
+      </div>
+
       <!-- Ошибка -->
       <div class="msg err" id="errorMsg" style="margin-top:12px"></div>
     </div>
@@ -436,7 +490,10 @@
 
     <!-- РАСПОЗНАНО -->
     <div class="card" id="recognizedCard" style="display:none">
-      <div class="card-label">Распознано</div>
+      <div class="results-head">
+        <span class="card-label">Распознано</span>
+        <button class="icon-btn" onclick="playOriginal()" title="Озвучить оригинал">▶</button>
+      </div>
       <div class="recognized-box" id="recognizedBox"></div>
     </div>
 
@@ -464,9 +521,17 @@
 
   <!-- ФУТЕР -->
   <footer>
-    Перевод: MyMemory API · Голос: браузерный TTS · Распознавание: Web Speech API<br>
+    Перевод: Azure Translator · Голос: браузерный TTS · Распознавание: Web Speech API<br>
     <div id="wordCounter" class="word-counter"></div>
   </footer>
+
+  <!-- МОДАЛЬНОЕ ОКНО ВЫБОРА ЯЗЫКА -->
+  <div class="lang-modal-overlay" id="langModalOverlay" onclick="hideLangModal()">
+    <div class="lang-modal" onclick="event.stopPropagation()">
+      <div class="lang-modal-title">Выберите язык</div>
+      <div class="lang-modal-grid" id="langModalGrid"></div>
+    </div>
+  </div>
 
   <!-- FULLSCREEN OVERLAY -->
   <div id="fsOverlay" class="fs-overlay">
@@ -479,9 +544,11 @@
 /* ============================================================
    КОНФИГ
 ============================================================ */
-const MYMEMORY_EMAIL = 'timtim044@mail.ru';
+const AZURE_KEY      = 'DK9nsXOz6iWNUD1Luyttf7VMzEqX7G9MbMV5qJiu9hdlmuZ2kS0dJQQJ99CBAC5RqLJXJ3w3AAAbACOG2fa8';
+const AZURE_REGION   = 'westeurope';
+const AZURE_ENDPOINT = 'https://api.cognitive.microsofttranslator.com';
 const HISTORY_KEY    = 'lv_history';
-const WORDS_KEY      = 'lv_words';
+const CHARS_KEY      = 'lv_chars';
 
 /* ============================================================
    СОСТОЯНИЕ
@@ -498,6 +565,9 @@ let lastSuccessTexts = [];
 let wakeLock         = null;
 let histOpen         = false;
 let translationSeq   = 0;   // защита от гонки: смена режима во время перевода
+let autoMode           = 'off';  // 'off' | 'repeat' | 'dialog'
+let pendingAutoRestart = false;  // true только после реального перевода (не история)
+let autoRestartTimer   = null;   // ссылка на setTimeout авто-рестарта (чтобы отменить)
 
 /* ============================================================
    КОНФИГУРАЦИЯ ЯЗЫКОВ
@@ -512,7 +582,28 @@ const TARGETS = {
     { code: 'ru', speech: 'ru-RU', name: 'Русский', flag: '🇷🇺', rtl: false },
   ],
 };
-const ALL_LANGS = [...TARGETS.ru, ...TARGETS.foreign];
+// Дополнительные языки для выпадающего списка
+const OTHER_LANGS = [
+  { code: 'fr', speech: 'fr-FR', name: 'Французский',    flag: '🇫🇷', rtl: false },
+  { code: 'de', speech: 'de-DE', name: 'Немецкий',       flag: '🇩🇪', rtl: false },
+  { code: 'es', speech: 'es-ES', name: 'Испанский',      flag: '🇪🇸', rtl: false },
+  { code: 'it', speech: 'it-IT', name: 'Итальянский',    flag: '🇮🇹', rtl: false },
+  { code: 'zh-Hans', speech: 'zh-CN', name: 'Китайский', flag: '🇨🇳', rtl: false },
+  { code: 'ja', speech: 'ja-JP', name: 'Японский',       flag: '🇯🇵', rtl: false },
+  { code: 'ko', speech: 'ko-KR', name: 'Корейский',      flag: '🇰🇷', rtl: false },
+  { code: 'hi', speech: 'hi-IN', name: 'Хинди',          flag: '🇮🇳', rtl: false },
+  { code: 'fa', speech: 'fa-IR', name: 'Персидский',     flag: '🇮🇷', rtl: true  },
+  { code: 'he', speech: 'he-IL', name: 'Иврит',          flag: '🇮🇱', rtl: true  },
+  { code: 'pt', speech: 'pt-BR', name: 'Португальский',  flag: '🇧🇷', rtl: false },
+  { code: 'pl', speech: 'pl-PL', name: 'Польский',       flag: '🇵🇱', rtl: false },
+  { code: 'uk', speech: 'uk-UA', name: 'Украинский',     flag: '🇺🇦', rtl: false },
+  { code: 'nl', speech: 'nl-NL', name: 'Нидерландский',  flag: '🇳🇱', rtl: false },
+  { code: 'ro', speech: 'ro-RO', name: 'Румынский',      flag: '🇷🇴', rtl: false },
+  { code: 'el', speech: 'el-GR', name: 'Греческий',      flag: '🇬🇷', rtl: false },
+];
+// Объединённый список для doTranslate и отображения
+const ALL_RU_TARGETS = [...TARGETS.ru, ...OTHER_LANGS];
+const ALL_LANGS = [...ALL_RU_TARGETS, ...TARGETS.foreign];
 
 
 /* ============================================================
@@ -540,11 +631,14 @@ document.getElementById('themeBtn').addEventListener('click', () => {
    РЕЖИМ
 ============================================================ */
 function setMode(m) {
+  if (isRecording) { recognition && recognition.stop(); }
   mode = m;
+  localStorage.setItem('mode', m);
   document.getElementById('tab-ru').classList.toggle('active', m === 'ru');
   document.getElementById('tab-foreign').classList.toggle('active', m === 'foreign');
   document.getElementById('langPillsLabel').textContent =
     m === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+  updateSubtitle();
   resetUI();
 }
 function selectForeignLang(btn) {
@@ -552,6 +646,48 @@ function selectForeignLang(btn) {
   btn.classList.add('active');
   foreignLang = btn.dataset.lang;
   foreignCode = btn.dataset.code;
+  localStorage.setItem('foreignLang', foreignLang);
+  localStorage.setItem('foreignCode', foreignCode);
+  updateSubtitle();
+}
+
+function updateSubtitle() {
+  const el = document.getElementById('headerSubtitle');
+  if (!el) return;
+  if (mode === 'ru') {
+    const lang = ALL_RU_TARGETS.find(l => l.code === foreignCode);
+    el.textContent = lang ? `Рус → ${lang.flag} ${lang.name}` : 'Рус → ?';
+  } else {
+    const lang = ALL_LANGS.find(l => l.code === foreignCode);
+    el.textContent = lang ? `${lang.flag} ${lang.name} → Рус` : '? → Рус';
+  }
+}
+
+function playOriginal() {
+  const text = document.getElementById('recognizedBox').textContent;
+  if (!text || text === '...') return;
+  stopTTS();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = getInputLang(); u.rate = ttsRate;
+  const voices = window.speechSynthesis.getVoices();
+  const prefix = u.lang.split('-')[0];
+  const v = voices.find(v => v.lang === u.lang) || voices.find(v => v.lang.startsWith(prefix));
+  if (v) u.voice = v;
+  window.speechSynthesis.speak(u);
+}
+
+function shareTranslation(code) {
+  const el   = document.getElementById(`text-${code}`);
+  const text = el?.dataset.translated || el?.textContent;
+  if (!text) return;
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById(`share-${code}`);
+      if (btn) { btn.textContent = '✅ Скопировано'; setTimeout(() => { btn.textContent = '📤 Поделиться'; }, 2000); }
+    }).catch(() => showError('Поделиться не удалось'));
+  }
 }
 
 /* ============================================================
@@ -657,6 +793,7 @@ function startRecording() {
 function stopRecordingUI() {
   if (!isRecording) return;   // guard: onend всегда следует за onerror
   isRecording = false;
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   navigator.vibrate && navigator.vibrate([30, 50, 30]);
   document.getElementById('micBtn').classList.remove('recording');
   document.getElementById('micBtn').textContent = '🎤';
@@ -682,39 +819,53 @@ function sendText() {
 /* ============================================================
    ПЕРЕВОД — через API
 ============================================================ */
-async function translateText(text, from, to) {
-  const emailParam = MYMEMORY_EMAIL ? `&de=${encodeURIComponent(MYMEMORY_EMAIL)}` : '';
-  const url  = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}${emailParam}`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('Ошибка сети');
+// Batch-перевод: один запрос для всех целевых языков сразу
+// Возвращает объект { ar: "...", tr: "...", en: "..." }
+async function translateTexts(text, from, toCodes) {
+  const toParam = toCodes.map(c => `to=${encodeURIComponent(c)}`).join('&');
+  const url  = `${AZURE_ENDPOINT}/translate?api-version=3.0&from=${encodeURIComponent(from)}&${toParam}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key':    AZURE_KEY,
+      'Ocp-Apim-Subscription-Region': AZURE_REGION,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify([{ Text: text }])
+  });
+  if (!resp.ok) {
+    if (resp.status === 429) throw new Error('QUOTA_EXCEEDED');
+    throw new Error('Ошибка сети: ' + resp.status);
+  }
   const data = await resp.json();
-  if (data.responseStatus !== 200 && data.responseStatus !== '200') {
-    const details = String(data.responseDetails || '').toUpperCase();
-    if (details.includes('DAILY LIMIT') || details.includes('ALLOWANCE') ||
-        data.responseStatus == 429 || data.responseStatus == 403) {
-      throw new Error('QUOTA_EXCEEDED');
-    }
-    throw new Error(data.responseDetails || 'Ошибка API');
-  }
-  const translated = data.responseData.translatedText || '';
-  // Иногда MyMemory возвращает 200, но текст содержит предупреждение о лимите
-  if (translated.toUpperCase().includes('MYMEMORY WARNING')) {
-    throw new Error('QUOTA_EXCEEDED');
-  }
-  // Для латинских языков (en, tr) проверяем кривую кодировку:
-  // MyMemory иногда возвращает кириллицу в Windows-1251, которая отображается как мусор
-  if (to === 'en') {
-    const nonAscii = (translated.match(/[^\x00-\x7F]/g) || []).length;
-    if (nonAscii > translated.length * 0.1) throw new Error('Ошибка кодировки ответа API');
-  }
-  return translated;
+  const result = {};
+  (data[0]?.translations || []).forEach(t => { result[t.to] = t.text; });
+  return result;
+}
+
+// Транслитерация арабского текста → латиница (например: مرحبا → marhaban)
+async function transliterateArabic(text) {
+  try {
+    const url  = `${AZURE_ENDPOINT}/transliterate?api-version=3.0&language=ar&fromScript=Arab&toScript=Latn`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key':    AZURE_KEY,
+        'Ocp-Apim-Subscription-Region': AZURE_REGION,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{ Text: text }])
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data[0]?.text || null;
+  } catch { return null; }
 }
 
 async function doTranslate(text, fromCode, fromText = false) {
-  const mySeq  = ++translationSeq;              // уникальный номер этого перевода
-  // В режиме "я говорю по-русски" — только выбранный язык
+  const mySeq  = ++translationSeq;
   const targets = mode === 'ru'
-    ? TARGETS.ru.filter(t => t.code === foreignCode)
+    ? ALL_RU_TARGETS.filter(t => t.code === foreignCode)
     : TARGETS.foreign;
   const box = document.getElementById('translationsBox');
   box.innerHTML = '';
@@ -732,6 +883,7 @@ async function doTranslate(text, fromCode, fromText = false) {
           </div>
         </div>
         <div class="tr-text loading" id="text-${lang.code}" dir="${lang.rtl ? 'rtl' : 'ltr'}">Переводим...</div>
+        <div class="tr-translit" id="translit-${lang.code}"></div>
         <div class="tr-actions" id="actions-${lang.code}" style="display:none">
           <button class="tr-btn play-btn" id="play-${lang.code}"
             onclick="speakOne('${lang.code}', '${lang.speech}')">▶ Озвучить</button>
@@ -739,42 +891,51 @@ async function doTranslate(text, fromCode, fromText = false) {
             onclick="showFullscreen('${lang.code}')">👁 Показать</button>
           <button class="tr-btn copy-btn" id="copy-${lang.code}"
             onclick="copyOne('${lang.code}')">📋 Копировать</button>
+          <button class="tr-btn share-btn" id="share-${lang.code}"
+            onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
         </div>
       </div>
     `);
   });
 
-  const results = await Promise.allSettled(
-    targets.map(lang => translateText(text, fromCode, lang.code).then(t => ({ lang, t })))
-  );
+  // Один batch-запрос для всех языков сразу
+  let translations = {};
+  let quotaError   = false;
+  try {
+    translations = await translateTexts(text, fromCode, targets.map(t => t.code));
+  } catch(e) {
+    if (e.message === 'QUOTA_EXCEEDED') quotaError = true;
+  }
 
-  // Снимаем блокировку в любом случае (даже если результат устарел)
   document.getElementById('micBtn').classList.remove('busy');
-
-  // Если пользователь сменил режим пока шёл запрос — выбрасываем результат
   if (mySeq !== translationSeq) return;
 
   const successTexts = [];
-  let   quotaError   = false;
-  results.forEach((res, i) => {
-    if (res.status === 'fulfilled') {
-      const { lang, t } = res.value;
-      const el = document.getElementById(`text-${lang.code}`);
+  targets.forEach(lang => {
+    const t  = translations[lang.code];
+    const el = document.getElementById(`text-${lang.code}`);
+    if (t) {
       el.textContent = t; el.classList.remove('loading');
       el.dataset.translated = t; el.dataset.speech = lang.speech;
       document.getElementById(`actions-${lang.code}`).style.display = 'flex';
       successTexts.push({ code: lang.code, speech: lang.speech, text: t });
+      // Транслитерация для арабского
+      if (lang.code === 'ar') {
+        transliterateArabic(t).then(roman => {
+          if (roman && mySeq === translationSeq) {
+            const tel = document.getElementById(`translit-${lang.code}`);
+            if (tel) tel.textContent = roman;
+          }
+        });
+      }
     } else {
-      const code = targets[i].code;
-      const el   = document.getElementById(`text-${code}`);
       el.textContent = 'Не удалось перевести';
       el.classList.remove('loading'); el.classList.add('err-text');
-      if (res.reason?.message === 'QUOTA_EXCEEDED') quotaError = true;
     }
   });
 
   if (quotaError) {
-    showError('Дневной лимит API исчерпан (10 000 слов). Попробуйте завтра.');
+    showError('Месячный лимит Azure исчерпан (2 000 000 символов). Попробуйте в следующем месяце.');
   }
 
   if (successTexts.length) {
@@ -782,13 +943,11 @@ async function doTranslate(text, fromCode, fromText = false) {
     document.getElementById('repeatBtn').style.display = 'flex';
     saveHistory(text, fromCode, successTexts);
     trackApiWords(text, targets.length);
-    autoPlay(successTexts);
-    // Скролл к результатам — после заполнения DOM
+    autoPlay(successTexts, true);
     setTimeout(() => {
       document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 150);
   } else if (fromText) {
-    // Текстовый ввод: возвращаем текст в поле если перевод провалился
     const inp = document.getElementById('textInput');
     if (!inp.value) inp.value = text;
   }
@@ -859,13 +1018,24 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
 function stopTTS() {
   window.speechSynthesis.cancel();
   ttsQueue = []; ttsPlaying = false;
+  pendingAutoRestart = false;
+  if (autoRestartTimer) { clearTimeout(autoRestartTimer); autoRestartTimer = null; }
   document.querySelectorAll('.play-btn').forEach(b => b.classList.remove('playing'));
 }
-function autoPlay(list) { stopTTS(); ttsQueue = [...list]; playNext(); }
-function repeatTTS()    { if (lastSuccessTexts.length) autoPlay([...lastSuccessTexts]); }
+function autoPlay(list, fromTranslation = false) {
+  stopTTS();  // сбрасывает pendingAutoRestart
+  ttsQueue = [...list];
+  pendingAutoRestart = fromTranslation;
+  playNext();
+}
+function repeatTTS() { if (lastSuccessTexts.length) autoPlay([...lastSuccessTexts]); }
 
 function playNext() {
-  if (!ttsQueue.length) { ttsPlaying = false; return; }
+  if (!ttsQueue.length) {
+    ttsPlaying = false;
+    if (pendingAutoRestart) { pendingAutoRestart = false; scheduleAutoRestart(); }
+    return;
+  }
   ttsPlaying = true;
   const item    = ttsQueue.shift();
   const playBtn = document.getElementById(`play-${item.code}`);
@@ -876,7 +1046,10 @@ function playNext() {
 
   const voices = window.speechSynthesis.getVoices();
   const prefix = item.speech.split('-')[0];
-  const voice  = voices.find(v => v.lang === item.speech)
+  const isMale = v => /male|мужской|man\b/i.test(v.name) && !/female|женский/i.test(v.name);
+  const voice  = voices.find(v => v.lang === item.speech && isMale(v))
+              || voices.find(v => v.lang.startsWith(prefix) && isMale(v))
+              || voices.find(v => v.lang === item.speech)
               || voices.find(v => v.lang.startsWith(prefix));
   if (voice) u.voice = voice;
 
@@ -922,12 +1095,50 @@ function copyOne(code) {
 }
 
 /* ============================================================
+   АВТО-РЕЖИМ
+============================================================ */
+function setAutoMode(btn) {
+  autoMode = btn.dataset.auto;
+  localStorage.setItem('autoMode', autoMode);
+  document.querySelectorAll('.auto-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const labels = { off: 'ручной', repeat: 'авто-запись', dialog: 'диалог' };
+  document.getElementById('autoModeLabel').textContent = labels[autoMode] || '';
+}
+
+function scheduleAutoRestart() {
+  if (autoMode === 'off') return;
+  // Показываем подсказку кому говорить во время паузы
+  const hint = document.getElementById('recordHint');
+  if (autoMode === 'dialog') {
+    hint.textContent = mode === 'ru' ? 'Ход собеседника...' : 'Ваш ход...';
+  } else {
+    hint.textContent = 'Говорите снова...';
+  }
+  hint.classList.add('live');
+  autoRestartTimer = setTimeout(() => {
+    autoRestartTimer = null;
+    if (autoMode === 'dialog') {
+      const next = mode === 'ru' ? 'foreign' : 'ru';
+      mode = next;
+      localStorage.setItem('mode', next);
+      document.getElementById('tab-ru').classList.toggle('active', next === 'ru');
+      document.getElementById('tab-foreign').classList.toggle('active', next === 'foreign');
+      document.getElementById('langPillsLabel').textContent =
+        next === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+    }
+    navigator.vibrate && navigator.vibrate([40, 60, 40]);
+    startRecording();
+  }, 700);
+}
+
+/* ============================================================
    TTS СКОРОСТЬ
 ============================================================ */
 function setTtsRate(btn) {
   ttsRate = parseFloat(btn.dataset.rate);
   localStorage.setItem('ttsRate', ttsRate);
-  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.speed-btn:not(.auto-btn)').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
@@ -978,6 +1189,7 @@ function saveHistory(text, fromCode, successTexts) {
   if (history.length && history[0].text === text) return;
   history.unshift({
     id: Date.now(), text, fromCode, mode,
+    foreignLang, foreignCode,
     ts: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
     translations: successTexts.map(t => ({ code: t.code, speech: t.speech, text: t.text })),
   });
@@ -1017,20 +1229,75 @@ function renderHistory() {
     textEl.className   = 'history-text';
     textEl.textContent = h.text;
 
+    const langsEl = document.createElement('span');
+    langsEl.className   = 'history-langs';
+    langsEl.textContent = h.translations
+      ? '→ ' + h.translations.map(t => { const l = ALL_LANGS.find(x => x.code === t.code); return l ? l.flag : ''; }).join('')
+      : '';
+
     const tsEl = document.createElement('span');
     tsEl.className   = 'history-ts';
     tsEl.textContent = h.ts;
 
-    item.appendChild(flag); item.appendChild(textEl); item.appendChild(tsEl);
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'history-del';
+    delBtn.textContent = '✕';
+    delBtn.title       = 'Удалить';
+    delBtn.onclick     = (e) => { e.stopPropagation(); deleteHistoryItem(h.id); };
+
+    item.appendChild(flag); item.appendChild(textEl); item.appendChild(langsEl); item.appendChild(tsEl); item.appendChild(delBtn);
     item.onclick = () => replayFromHistory(h);
     list.appendChild(item);
   });
 
   const clearBtn = document.createElement('button');
   clearBtn.className   = 'history-clear-btn';
-  clearBtn.textContent = '🗑 Очистить историю';
+  clearBtn.textContent = '🗑 Очистить всю историю';
   clearBtn.onclick     = () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); };
   list.appendChild(clearBtn);
+}
+
+/* ============================================================
+   ВЫБОР ЯЗЫКА — модальное окно
+============================================================ */
+function showLangModal() {
+  const grid = document.getElementById('langModalGrid');
+  grid.innerHTML = '';
+  OTHER_LANGS.forEach(lang => {
+    const btn = document.createElement('button');
+    btn.className   = 'lang-modal-item';
+    btn.textContent = `${lang.flag} ${lang.name}`;
+    btn.onclick     = () => selectOtherLang(lang);
+    grid.appendChild(btn);
+  });
+  document.getElementById('langModalOverlay').classList.add('open');
+}
+
+function hideLangModal() {
+  document.getElementById('langModalOverlay').classList.remove('open');
+}
+
+function selectOtherLang(lang) {
+  hideLangModal();
+  // Снимаем активность со всех основных таблеток
+  document.querySelectorAll('.lang-pill').forEach(b => b.classList.remove('active'));
+  // Обновляем кнопку "Другой" чтобы показать выбранный язык
+  const pill = document.getElementById('otherLangPill');
+  pill.textContent   = `${lang.flag} ${lang.name}`;
+  pill.dataset.lang  = lang.speech;
+  pill.dataset.code  = lang.code;
+  pill.classList.add('active');
+  foreignLang = lang.speech;
+  foreignCode = lang.code;
+  localStorage.setItem('foreignLang', foreignLang);
+  localStorage.setItem('foreignCode', foreignCode);
+  updateSubtitle();
+}
+
+function deleteHistoryItem(id) {
+  const history = getHistory().filter(h => h.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  renderHistory();
 }
 
 function replayFromHistory(h) {
@@ -1041,6 +1308,14 @@ function replayFromHistory(h) {
     document.getElementById('tab-foreign').classList.toggle('active', mode === 'foreign');
     document.getElementById('langPillsLabel').textContent =
       mode === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+  }
+  // Восстанавливаем выбранный язык
+  if (h.foreignCode) {
+    foreignLang = h.foreignLang || foreignLang;
+    foreignCode = h.foreignCode || foreignCode;
+    document.querySelectorAll('.lang-pill').forEach(b => {
+      b.classList.toggle('active', b.dataset.code === foreignCode);
+    });
   }
 
   hideError(); resetUI();
@@ -1059,27 +1334,28 @@ function replayFromHistory(h) {
 }
 
 /* ============================================================
-   СЧЁТЧИК СЛОВ API
+   СЧЁТЧИК СИМВОЛОВ API (Azure F0: 2 000 000 символов/месяц)
 ============================================================ */
 function trackApiWords(text, numTargets) {
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const today = new Date().toDateString();
+  const charCount = text.length;
+  const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
   let stored;
-  try { stored = JSON.parse(localStorage.getItem(WORDS_KEY) || '{}'); }
+  try { stored = JSON.parse(localStorage.getItem(CHARS_KEY) || '{}'); }
   catch { stored = {}; }
-  const prev     = stored.date === today ? (stored.count || 0) : 0;
-  const newCount = prev + wordCount * numTargets;
-  localStorage.setItem(WORDS_KEY, JSON.stringify({ date: today, count: newCount }));
+  const prev     = stored.month === month ? (stored.count || 0) : 0;
+  const newCount = prev + charCount * numTargets;
+  localStorage.setItem(CHARS_KEY, JSON.stringify({ month, count: newCount }));
   renderWordCounter(newCount);
 }
 
 function renderWordCounter(count) {
   const el    = document.getElementById('wordCounter');
   if (!el) return;
-  const limit = MYMEMORY_EMAIL ? 10000 : 1000;
+  const limit = 2_000_000;
   const pct   = count / limit;
-  el.textContent = `Использовано сегодня: ${count.toLocaleString('ru')} / ${limit.toLocaleString('ru')} слов`;
-  el.className   = 'word-counter' + (pct >= 0.9 ? ' danger' : pct >= 0.75 ? ' warn' : '');
+  if (pct < 0.75) { el.textContent = ''; return; }  // показываем только при >75%
+  el.textContent = `⚠️ Лимит Azure: использовано ${count.toLocaleString('ru')} / ${limit.toLocaleString('ru')} символов`;
+  el.className   = 'word-counter' + (pct >= 0.9 ? ' danger' : ' warn');
 }
 
 /* ============================================================
@@ -1162,6 +1438,51 @@ if ('serviceWorker' in navigator) {
    ИНИЦИАЛИЗАЦИЯ UI
 ============================================================ */
 (function init() {
+  // Восстанавливаем вкладку (режим)
+  const savedMode = localStorage.getItem('mode') || 'ru';
+  if (savedMode !== 'ru') {
+    mode = savedMode;
+    document.getElementById('tab-ru').classList.remove('active');
+    document.getElementById('tab-foreign').classList.add('active');
+    document.getElementById('langPillsLabel').textContent = 'Язык собеседника:';
+  }
+
+  // Авто-режим
+  const savedAutoMode = localStorage.getItem('autoMode') || 'off';
+  autoMode = savedAutoMode;
+  document.querySelectorAll('.auto-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.auto === savedAutoMode);
+  });
+  const autoLabels = { off: 'ручной', repeat: 'авто-запись', dialog: 'диалог' };
+  document.getElementById('autoModeLabel').textContent = autoLabels[savedAutoMode] || 'ручной';
+
+  // Восстанавливаем выбранный язык
+  const savedForeignLang = localStorage.getItem('foreignLang');
+  const savedForeignCode = localStorage.getItem('foreignCode');
+  if (savedForeignLang && savedForeignCode) {
+    foreignLang = savedForeignLang;
+    foreignCode = savedForeignCode;
+    // Проверяем — может это кастомный язык (не в основных таблетках)
+    const isCore = TARGETS.ru.some(l => l.code === savedForeignCode);
+    if (isCore) {
+      document.querySelectorAll('.lang-pill').forEach(b => {
+        b.classList.toggle('active', b.dataset.code === foreignCode);
+      });
+    } else {
+      // Восстанавливаем кастомный язык в кнопке "Другой"
+      const lang = OTHER_LANGS.find(l => l.code === savedForeignCode);
+      if (lang) {
+        document.querySelectorAll('.lang-pill').forEach(b => b.classList.remove('active'));
+        const pill = document.getElementById('otherLangPill');
+        pill.textContent  = `${lang.flag} ${lang.name}`;
+        pill.dataset.lang = lang.speech;
+        pill.dataset.code = lang.code;
+        pill.classList.add('active');
+      }
+    }
+  }
+  updateSubtitle();
+
   // TTS скорость
   const savedRate = parseFloat(localStorage.getItem('ttsRate') || '0.88');
   ttsRate = savedRate;
@@ -1172,11 +1493,11 @@ if ('serviceWorker' in navigator) {
   // Состояние сети
   updateOnlineStatus();
 
-  // Счётчик слов
-  const today = new Date().toDateString();
+  // Счётчик символов
+  const month = new Date().toISOString().slice(0, 7);
   try {
-    const stored = JSON.parse(localStorage.getItem(WORDS_KEY) || '{}');
-    renderWordCounter(stored.date === today ? (stored.count || 0) : 0);
+    const stored = JSON.parse(localStorage.getItem(CHARS_KEY) || '{}');
+    renderWordCounter(stored.month === month ? (stored.count || 0) : 0);
   } catch { renderWordCounter(0); }
 })();
 </script>
