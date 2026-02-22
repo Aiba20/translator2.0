@@ -759,8 +759,8 @@
 /* ============================================================
    КОНФИГ
 ============================================================ */
-const GEMINI_KEY      = 'AIzaSyCBmq3R97EQvUMIWDWyHErOwZUU7_V-K80';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// Ключ хранится на Cloudflare Worker — в коде его нет
+const PROXY_URL = 'СЮДА_ВСТАВЬ_URL_ВОРКЕРА';
 const HISTORY_KEY     = 'lv_history';
 const CHARS_KEY       = 'lv_chars';
 
@@ -1082,7 +1082,7 @@ Text to translate: "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {${jsonKeys}}`;
 
-  const resp = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_KEY}`, {
+  const resp = await fetch(PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1120,7 +1120,7 @@ async function transliterateScript(text, langCode) {
   const lang = ALL_LANGS.find(l => l.code === langCode);
   const langName = lang ? lang.name : 'the given';
   try {
-    const resp = await fetch(`${GEMINI_ENDPOINT}?key=${GEMINI_KEY}`, {
+    const resp = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
