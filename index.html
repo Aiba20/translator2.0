@@ -198,7 +198,7 @@
     .controls-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
     .controls-label { font-size: 0.7rem; color: var(--text3); }
     .speed-btn {
-      width: 30px; height: 30px; border-radius: 50%;
+      width: 40px; height: 40px; border-radius: 50%;
       border: 1px solid var(--border); background: transparent;
       cursor: pointer; font-size: 0.85rem;
       display: flex; align-items: center; justify-content: center;
@@ -282,7 +282,7 @@
     }
     .results-head .card-label { margin-bottom: 0; }
     .icon-btn {
-      width: 30px; height: 30px; border-radius: 50%;
+      width: 40px; height: 40px; border-radius: 50%;
       border: 1px solid var(--border); background: transparent;
       color: var(--text2); font-size: 0.85rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -313,8 +313,8 @@
       max-height: 70vh; overflow-y: auto;
     }
     .lang-modal-title {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 1.2px;
-      text-transform: uppercase; color: var(--text3); margin-bottom: 14px;
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2px;
+      color: var(--text3); margin-bottom: 14px;
     }
     .lang-modal-grid {
       display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
@@ -357,9 +357,9 @@
     }
     .history-clear-btn:hover { color: var(--danger); border-color: var(--danger); }
     .history-del {
-      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
       border: none; background: transparent; color: var(--text3);
-      font-size: 0.75rem; cursor: pointer; display: flex;
+      font-size: 0.85rem; cursor: pointer; display: flex;
       align-items: center; justify-content: center;
       transition: all 0.2s; -webkit-tap-highlight-color: transparent;
     }
@@ -427,6 +427,24 @@
     .volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none; width: 16px; height: 16px;
       border-radius: 50%; background: var(--accent1); cursor: pointer;
+    }
+
+    /* ===================== БЕЙДЖ АКТИВНОГО РЕЖИМА ===================== */
+    .mode-badge {
+      display: none; padding: 2px 8px; border-radius: 20px;
+      background: rgba(var(--accent-rgb), 0.18);
+      border: 1px solid rgba(var(--accent-rgb), 0.4);
+      color: var(--accent1); font-size: 0.65rem; font-weight: 600;
+      margin-left: 4px; white-space: nowrap;
+    }
+    .mode-badge.visible { display: inline-flex; align-items: center; }
+
+    /* ===================== КНОПКА «ЕЩЁ ЯЗЫКИ» ===================== */
+    #otherLangPill {
+      border-style: dashed; color: var(--text3);
+    }
+    #otherLangPill.active {
+      border-style: solid; color: var(--accent1);
     }
 
     /* ===================== НАСТРОЙКИ (свёрнутый блок) ===================== */
@@ -644,6 +662,7 @@
       <!-- Кнопка открытия настроек -->
       <button class="settings-toggle" id="settingsToggle" onclick="toggleSettings()">
         ⚙️ Настройки голоса и перевода
+        <span class="mode-badge" id="modeBadge"></span>
         <span class="s-arrow" id="settingsArrow">▼</span>
       </button>
 
@@ -834,6 +853,7 @@ let histOpen         = false;
 let favOpen          = false;
 let translationSeq   = 0;
 let currentAbort       = null;
+let displayAbort       = null; // для отмены транслитерации при навигации по истории
 let autoMode           = 'off';
 let pendingAutoRestart = false;
 let autoRestartTimer   = null;
@@ -1375,6 +1395,11 @@ async function doTranslate(text, fromCode, fromText = false) {
    Используется: история
 ============================================================ */
 function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslations) {
+  // Отменяем предыдущую транслитерацию из истории
+  if (displayAbort) displayAbort.abort();
+  displayAbort = new AbortController();
+  const displaySignal = displayAbort.signal;
+
   // Собираем только те языки, которые реально есть в сохранённых переводах
   const targets = savedTranslations
     .map(s => ALL_LANGS.find(l => l.code === s.code))
@@ -1438,8 +1463,8 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
       if (saved.roman && tel) {
         tel.textContent = saved.roman;
       } else if (tel) {
-        transliterateScript(saved.text, lang.code).then(roman => {
-          if (roman && tel) tel.textContent = roman;
+        transliterateScript(saved.text, lang.code, displaySignal).then(roman => {
+          if (roman && tel && !displaySignal.aborted) tel.textContent = roman;
         });
       }
     }
@@ -1528,6 +1553,7 @@ function speakOne(code, speechCode) {
 
 function copyOne(code) {
   const el   = document.getElementById(`text-${code}`);
+  if (!el) return;
   const text = el.dataset.translated || el.textContent;
   if (!text) return;
   navigator.clipboard.writeText(text).then(() => {
@@ -1550,6 +1576,19 @@ function setAutoMode(btn) {
   btn.classList.add('active');
   const labels = { off: 'выкл', repeat: 'авто-запись', dialog: 'диалог' };
   document.getElementById('autoModeLabel').textContent = labels[autoMode] || '';
+  updateModeBadge();
+}
+
+function updateModeBadge() {
+  const badge = document.getElementById('modeBadge');
+  if (!badge) return;
+  const icons = { repeat: '🔁 авто', dialog: '💬 диалог' };
+  if (autoMode === 'off') {
+    badge.classList.remove('visible');
+  } else {
+    badge.textContent = icons[autoMode] || autoMode;
+    badge.classList.add('visible');
+  }
 }
 
 function scheduleAutoRestart() {
@@ -1571,7 +1610,7 @@ function scheduleAutoRestart() {
       document.getElementById('tab-ru').classList.toggle('active', next === 'ru');
       document.getElementById('tab-foreign').classList.toggle('active', next === 'foreign');
       document.getElementById('langPillsLabel').textContent =
-        next === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+        next === 'ru' ? 'На какой язык переводить' : 'Язык собеседника';
       updateSubtitle();
     }
     navigator.vibrate && navigator.vibrate([40, 60, 40]);
@@ -1754,7 +1793,7 @@ function replayFromHistory(h) {
     document.getElementById('tab-ru').classList.toggle('active', mode === 'ru');
     document.getElementById('tab-foreign').classList.toggle('active', mode === 'foreign');
     document.getElementById('langPillsLabel').textContent =
-      mode === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+      mode === 'ru' ? 'На какой язык переводить' : 'Язык собеседника';
   }
   // Восстанавливаем выбранный язык
   if (h.foreignCode) {
@@ -1897,7 +1936,7 @@ if ('serviceWorker' in navigator) {
     mode = savedMode;
     document.getElementById('tab-ru').classList.remove('active');
     document.getElementById('tab-foreign').classList.add('active');
-    document.getElementById('langPillsLabel').textContent = 'Язык собеседника:';
+    document.getElementById('langPillsLabel').textContent = 'Язык собеседника';
   }
 
   // Авто-режим
@@ -1908,6 +1947,7 @@ if ('serviceWorker' in navigator) {
   });
   const autoLabels = { off: 'выкл', repeat: 'авто-запись', dialog: 'диалог' };
   document.getElementById('autoModeLabel').textContent = autoLabels[savedAutoMode] || 'выкл';
+  updateModeBadge();
 
   // Восстанавливаем выбранный язык
   const savedForeignLang = localStorage.getItem('foreignLang');
