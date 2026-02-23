@@ -751,7 +751,7 @@
         <!-- 🎙 РЕЧЬ -->
         <div class="settings-group-label">🎙 Речь</div>
 
-        <div class="controls-row">
+        <div class="controls-row" style="margin-top:0">
           <span class="controls-label">Скорость:</span>
           <button class="speed-btn" data-rate="0.65" onclick="setTtsRate(this)" title="Медленно">Медл.</button>
           <button class="speed-btn" data-rate="0.88" onclick="setTtsRate(this)" title="Нормально">Норм.</button>
@@ -775,12 +775,11 @@
         <!-- 🌐 ПЕРЕВОД -->
         <div class="settings-group-label">🌐 Перевод</div>
 
-        <div class="controls-row">
+        <div class="controls-row" style="margin-top:0">
           <span class="controls-label">Диалог:</span>
           <button class="speed-btn auto-btn active" data-auto="off"    onclick="setAutoMode(this)" title="Ручной — запись только по нажатию">Выкл</button>
-          <button class="speed-btn auto-btn"        data-auto="repeat" onclick="setAutoMode(this)" title="Авто-запись — после перевода снова слушает">Авто</button>
+          <button class="speed-btn auto-btn"        data-auto="repeat" onclick="setAutoMode(this)" title="Авто-запись — после перевода снова слушает">Повтор</button>
           <button class="speed-btn auto-btn"        data-auto="dialog" onclick="setAutoMode(this)" title="Диалог — чередует твой язык и язык собеседника">Диалог</button>
-          <span class="controls-label" id="autoModeLabel" style="margin-left:2px">выкл</span>
         </div>
 
         <div class="controls-row" style="margin-top:6px">
@@ -807,7 +806,7 @@
         <!-- 📊 ИНФО -->
         <div class="settings-group-label">📊 Инфо</div>
 
-        <div class="controls-row" style="cursor:pointer" onclick="toggleStats()">
+        <div class="controls-row" style="margin-top:0;cursor:pointer" onclick="toggleStats()">
           <span class="controls-label">Статистика</span>
           <span id="statsSummary" style="font-size:0.78rem;color:var(--text3);margin-left:auto"></span>
           <span style="font-size:0.75rem;color:var(--text3);margin-left:6px">▾</span>
@@ -1764,8 +1763,6 @@ function setAutoMode(btn) {
   localStorage.setItem('autoMode', autoMode);
   document.querySelectorAll('.auto-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const labels = { off: 'выкл', repeat: 'авто-запись', dialog: 'диалог' };
-  document.getElementById('autoModeLabel').textContent = labels[autoMode] || '';
   updateModeBadge();
 }
 
@@ -2135,8 +2132,6 @@ if ('serviceWorker' in navigator) {
   document.querySelectorAll('.auto-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.auto === savedAutoMode);
   });
-  const autoLabels = { off: 'выкл', repeat: 'авто-запись', dialog: 'диалог' };
-  document.getElementById('autoModeLabel').textContent = autoLabels[savedAutoMode] || 'выкл';
   updateModeBadge();
 
   // Восстанавливаем выбранный язык
@@ -2763,11 +2758,12 @@ function toggleStats() {
   if (!show) return;
   try {
     const s      = JSON.parse(localStorage.getItem(STATS_KEY) || '{"total":0,"langs":{},"days":{}}');
+    if (!s.total) { el.textContent = 'Пока нет переводов'; return; }
     const top    = Object.entries(s.langs || {}).sort((a,b)=>b[1]-a[1]).slice(0,4)
       .map(([c,n])=>{ const l=ALL_LANGS.find(x=>x.code===c); return `${l?l.flag:''}${l?l.name:c} ${n}`; }).join(' · ');
     const days   = Object.keys(s.days||{}).sort().slice(-7);
     const recent = days.map(d => d.slice(5) + ': ' + s.days[d]).join(' · ') || '—';
-    el.innerHTML = `Всего: <b>${s.total||0}</b> &nbsp;·&nbsp; Языки: ${top||'—'}<br>7 дней: ${recent}`;
+    el.innerHTML = `Всего: <b>${s.total}</b> &nbsp;·&nbsp; Языки: ${top||'—'}<br>7 дней: ${recent}`;
   } catch { el.textContent = 'Пока нет переводов'; }
 }
 
