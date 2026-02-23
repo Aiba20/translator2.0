@@ -764,7 +764,7 @@ const PROXY_URL = 'https://rough-cherry-2b43.timtim044.workers.dev/';
 const HISTORY_KEY     = 'lv_history';
 const CHARS_KEY       = 'lv_chars';
 
-// Названия языков для промпта Gemini
+// Названия языков для промпта AI
 const LANG_NAMES = {
   ar: 'Arabic', tr: 'Turkish', en: 'English', ru: 'Russian',
   fr: 'French', de: 'German', es: 'Spanish', it: 'Italian',
@@ -1054,7 +1054,7 @@ function sendText() {
 /* ============================================================
    ПЕРЕВОД — через API
 ============================================================ */
-// Перевод через Gemini Flash — разговорный или формальный стиль
+// Перевод через Groq (Llama 3.3) — разговорный или формальный стиль
 // Возвращает объект { ar: "...", ar_roman: "...", ja: "...", ja_roman: "...", tr: "...", en: "..." }
 async function translateTexts(text, from, toCodes) {
   const fromName    = LANG_NAMES[from] || from;
@@ -1098,13 +1098,13 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   if (data.error) throw new Error(data.error.message || 'Ошибка API');
   const candidate = data.candidates?.[0];
   if (!candidate) throw new Error('Пустой ответ от сервера перевода');
-  if (candidate.finishReason === 'SAFETY') throw new Error('Gemini заблокировал запрос (SAFETY filter)');
+  if (candidate.finishReason === 'SAFETY') throw new Error('Запрос заблокирован фильтром безопасности');
   const content = candidate.content?.parts?.[0]?.text || '';
-  if (!content) throw new Error('Gemini вернул пустой текст');
-  // Извлекаем JSON — Gemini иногда оборачивает в ```json ... ```
+  if (!content) throw new Error('Сервер вернул пустой ответ');
+  // Извлекаем JSON — модель иногда оборачивает в ```json ... ```
   const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Нет JSON в ответе Gemini: ' + content.slice(0, 100));
-  // Gemini иногда вставляет буквальные переносы строк внутри JSON-строк → sanitize
+  if (!jsonMatch) throw new Error('Неверный формат ответа: ' + content.slice(0, 100));
+  // Модель иногда вставляет буквальные переносы строк внутри JSON-строк → sanitize
   const sanitized = jsonMatch[0].replace(/("(?:[^"\\]|\\.)*")|[\r\n]/g,
     (m, str) => str ? str.replace(/\n/g, '\\n').replace(/\r/g, '') : m
   );
@@ -1648,27 +1648,26 @@ function replayFromHistory(h) {
 }
 
 /* ============================================================
-   СЧЁТЧИК СИМВОЛОВ API (Azure F0: 2 000 000 символов/месяц)
+   СЧЁТЧИК ЗАПРОСОВ API (Groq free: 14 400 запросов/день)
 ============================================================ */
 function trackApiWords(text, numTargets) {
-  const charCount = text.length;
-  const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  const day = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
   let stored;
   try { stored = JSON.parse(localStorage.getItem(CHARS_KEY) || '{}'); }
   catch { stored = {}; }
-  const prev     = stored.month === month ? (stored.count || 0) : 0;
-  const newCount = prev + charCount * numTargets;
-  localStorage.setItem(CHARS_KEY, JSON.stringify({ month, count: newCount }));
+  const prev     = stored.day === day ? (stored.count || 0) : 0;
+  const newCount = prev + numTargets;
+  try { localStorage.setItem(CHARS_KEY, JSON.stringify({ day, count: newCount })); } catch {}
   renderWordCounter(newCount);
 }
 
 function renderWordCounter(count) {
-  const el    = document.getElementById('wordCounter');
+  const el = document.getElementById('wordCounter');
   if (!el) return;
-  const limit = 2_000_000;
+  const limit = 14_400;
   const pct   = count / limit;
-  if (pct < 0.75) { el.textContent = ''; return; }  // показываем только при >75%
-  el.textContent = `⚠️ Лимит Gemini: использовано ${count.toLocaleString('ru')} / ${limit.toLocaleString('ru')} символов`;
+  if (pct < 0.75) { el.textContent = ''; return; }
+  el.textContent = `⚠️ Лимит Groq: ${count} / ${limit} запросов за сегодня`;
   el.className   = 'word-counter' + (pct >= 0.9 ? ' danger' : ' warn');
 }
 
