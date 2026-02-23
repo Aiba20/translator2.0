@@ -68,7 +68,7 @@
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg); color: var(--text);
       min-height: 100vh; display: flex; flex-direction: column;
-      align-items: center; padding: 0 0 40px;
+      align-items: center; padding: 0 0 100px;
       transition: background 0.3s, color 0.3s;
     }
 
@@ -186,11 +186,11 @@
     .text-input:focus { border-color: var(--accent1); }
     .text-input::placeholder { color: var(--text3); }
     .send-btn {
-      width: 42px; height: 42px; border-radius: var(--radius-sm);
+      height: 44px; padding: 0 18px; border-radius: 22px;
       border: none; background: linear-gradient(135deg, var(--accent1), var(--accent2));
-      color: #fff; font-size: 1.1rem; cursor: pointer;
+      color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: opacity 0.2s;
+      flex-shrink: 0; transition: opacity 0.2s; letter-spacing: -0.5px;
     }
     .send-btn:active { opacity: 0.8; }
 
@@ -198,13 +198,19 @@
     .controls-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
     .controls-label { font-size: 0.7rem; color: var(--text3); }
     .speed-btn {
-      width: 40px; height: 40px; border-radius: 50%;
+      min-width: 52px; height: 34px; padding: 4px 8px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border); background: transparent;
-      cursor: pointer; font-size: 0.85rem;
+      cursor: pointer; font-size: 0.72rem; color: var(--text2);
       display: flex; align-items: center; justify-content: center;
       transition: all 0.2s; -webkit-tap-highlight-color: transparent;
     }
-    .speed-btn.active { background: rgba(var(--accent-rgb), 0.15); border-color: var(--accent1); }
+    .speed-btn.active { background: rgba(var(--accent-rgb), 0.15); border-color: var(--accent1); color: var(--accent1); }
+    .settings-group-label {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text3); margin: 12px 0 4px;
+    }
+    .settings-divider { height: 1px; background: var(--border); margin: 10px 0 0; }
 
     /* ===================== РАСПОЗНАНО ===================== */
     .recognized-box {
@@ -692,15 +698,9 @@
 
     <!-- ВКЛАДКИ -->
     <div class="tabs">
-      <button class="tab active" id="tab-ru" onclick="setMode('ru')">
-        Я говорю<br>по-русски
-      </button>
-      <button class="tab" id="tab-foreign" onclick="setMode('foreign')">
-        Мне говорят<br>на другом языке
-      </button>
-      <button class="tab" id="tab-auto" onclick="setMode('auto')">
-        🔄 Авто
-      </button>
+      <button class="tab active" id="tab-ru" onclick="setMode('ru')">Мой язык</button>
+      <button class="tab" id="tab-foreign" onclick="setMode('foreign')">Чужой язык</button>
+      <button class="tab" id="tab-auto" onclick="setMode('auto')">🔄 Авто</button>
     </div>
 
     <!-- БЛОК ВВОДА -->
@@ -735,7 +735,7 @@
           placeholder="или введи текст вручную..."
           onkeydown="if(event.key==='Enter') sendText()"
         />
-        <button class="send-btn" onclick="sendText()" title="Перевести">✈️</button>
+        <button class="send-btn" onclick="sendText()" title="Перевести">→</button>
       </div>
 
       <!-- Кнопка открытия настроек -->
@@ -748,52 +748,21 @@
       <!-- Панель настроек (скрыта по умолчанию) -->
       <div class="settings-panel" id="settingsPanel">
 
-        <!-- Скорость речи -->
+        <!-- 🎙 РЕЧЬ -->
+        <div class="settings-group-label">🎙 Речь</div>
+
         <div class="controls-row">
-          <span class="controls-label">Скорость речи:</span>
-          <button class="speed-btn" data-rate="0.65" onclick="setTtsRate(this)" title="Медленно">🐢</button>
-          <button class="speed-btn" data-rate="0.88" onclick="setTtsRate(this)" title="Нормально">▶</button>
-          <button class="speed-btn" data-rate="1.1"  onclick="setTtsRate(this)" title="Быстро">🐇</button>
+          <span class="controls-label">Скорость:</span>
+          <button class="speed-btn" data-rate="0.65" onclick="setTtsRate(this)" title="Медленно">Медл.</button>
+          <button class="speed-btn" data-rate="0.88" onclick="setTtsRate(this)" title="Нормально">Норм.</button>
+          <button class="speed-btn" data-rate="1.1"  onclick="setTtsRate(this)" title="Быстро">Быстро</button>
         </div>
 
-        <!-- Режим диалога -->
-        <div class="controls-row" style="margin-top:6px">
-          <span class="controls-label">Диалог:</span>
-          <button class="speed-btn auto-btn active" data-auto="off"    onclick="setAutoMode(this)" title="Ручной — запись только по нажатию">✕</button>
-          <button class="speed-btn auto-btn"        data-auto="repeat" onclick="setAutoMode(this)" title="Авто-запись — после перевода снова слушает">🔁</button>
-          <button class="speed-btn auto-btn"        data-auto="dialog" onclick="setAutoMode(this)" title="Диалог — чередует твой язык и язык собеседника">💬</button>
-          <span class="controls-label" id="autoModeLabel" style="margin-left:2px">выкл</span>
-        </div>
-
-        <!-- Стиль перевода -->
-        <div class="controls-row" style="margin-top:6px">
-          <span class="controls-label">Стиль:</span>
-          <button class="tone-btn active" id="tone-casual" onclick="setTone('casual')" title="Разговорный стиль">💬 Разговорный</button>
-          <button class="tone-btn" id="tone-formal" onclick="setTone('formal')" title="Формальный стиль">🤵 Формальный</button>
-        </div>
-
-        <!-- Громкость -->
         <div class="controls-row" style="margin-top:6px">
           <span class="controls-label">🔊</span>
           <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1" oninput="setVolume(this.value)" title="Громкость TTS" />
         </div>
 
-        <!-- Пресеты сцены -->
-        <div class="controls-row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
-          <span class="controls-label">Сцена:</span>
-          <button class="preset-btn" data-ctx="В аэропорту" onclick="setContextPreset(this)">✈️</button>
-          <button class="preset-btn" data-ctx="В отеле"     onclick="setContextPreset(this)">🏨</button>
-          <button class="preset-btn" data-ctx="В ресторане" onclick="setContextPreset(this)">🍽️</button>
-          <button class="preset-btn" data-ctx="На шопинге"  onclick="setContextPreset(this)">🛒</button>
-          <button class="preset-btn" data-ctx="В больнице"  onclick="setContextPreset(this)">🏥</button>
-          <button class="preset-btn" data-ctx=""            onclick="setContextPreset(this)" title="Сбросить">✕</button>
-        </div>
-
-        <!-- Контекст ситуации -->
-        <input class="context-input" id="contextInput" type="text"
-          placeholder="📍 Контекст (необязательно): в ресторане, в аэропорту..." />
-
-        <!-- Голос TTS -->
         <div class="controls-row" style="margin-top:6px">
           <span class="controls-label">Голос:</span>
           <select class="voice-select" id="voiceSelect" onchange="setVoice(this.value)">
@@ -801,9 +770,45 @@
           </select>
         </div>
 
-        <!-- Статистика -->
-        <div class="controls-row" style="margin-top:6px;cursor:pointer" onclick="toggleStats()">
-          <span class="controls-label">📊 Статистика</span>
+        <div class="settings-divider"></div>
+
+        <!-- 🌐 ПЕРЕВОД -->
+        <div class="settings-group-label">🌐 Перевод</div>
+
+        <div class="controls-row">
+          <span class="controls-label">Диалог:</span>
+          <button class="speed-btn auto-btn active" data-auto="off"    onclick="setAutoMode(this)" title="Ручной — запись только по нажатию">Выкл</button>
+          <button class="speed-btn auto-btn"        data-auto="repeat" onclick="setAutoMode(this)" title="Авто-запись — после перевода снова слушает">Авто</button>
+          <button class="speed-btn auto-btn"        data-auto="dialog" onclick="setAutoMode(this)" title="Диалог — чередует твой язык и язык собеседника">Диалог</button>
+          <span class="controls-label" id="autoModeLabel" style="margin-left:2px">выкл</span>
+        </div>
+
+        <div class="controls-row" style="margin-top:6px">
+          <span class="controls-label">Стиль:</span>
+          <button class="tone-btn active" id="tone-casual" onclick="setTone('casual')" title="Разговорный стиль">💬 Разговорный</button>
+          <button class="tone-btn" id="tone-formal" onclick="setTone('formal')" title="Формальный стиль">🤵 Формальный</button>
+        </div>
+
+        <div class="controls-row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
+          <span class="controls-label">Сцена:</span>
+          <button class="preset-btn" data-ctx="В аэропорту" onclick="setContextPreset(this)">✈️</button>
+          <button class="preset-btn" data-ctx="В отеле"     onclick="setContextPreset(this)">🏨</button>
+          <button class="preset-btn" data-ctx="В ресторане" onclick="setContextPreset(this)">🍽️</button>
+          <button class="preset-btn" data-ctx="На шопинге"  onclick="setContextPreset(this)">🛒</button>
+          <button class="preset-btn" data-ctx="В больнице"  onclick="setContextPreset(this)">🏥</button>
+          <button class="preset-btn" data-ctx=""            onclick="setContextPreset(this)" title="Сбросить">—</button>
+        </div>
+
+        <input class="context-input" id="contextInput" type="text"
+          placeholder="📍 Контекст: аэропорт, ресторан, отель..." />
+
+        <div class="settings-divider"></div>
+
+        <!-- 📊 ИНФО -->
+        <div class="settings-group-label">📊 Инфо</div>
+
+        <div class="controls-row" style="cursor:pointer" onclick="toggleStats()">
+          <span class="controls-label">Статистика</span>
           <span id="statsSummary" style="font-size:0.78rem;color:var(--text3);margin-left:auto"></span>
           <span style="font-size:0.75rem;color:var(--text3);margin-left:6px">▾</span>
         </div>
@@ -901,7 +906,7 @@
 
   <!-- ФУТЕР -->
   <footer>
-    Перевод: Groq Llama 3.3 · Голос: браузерный TTS · Распознавание: Web Speech API<br>
+    Groq Llama 3.3 · Web Speech API
     <div id="wordCounter" class="word-counter"></div>
   </footer>
 
@@ -2763,7 +2768,7 @@ function toggleStats() {
     const days   = Object.keys(s.days||{}).sort().slice(-7);
     const recent = days.map(d => d.slice(5) + ': ' + s.days[d]).join(' · ') || '—';
     el.innerHTML = `Всего: <b>${s.total||0}</b> &nbsp;·&nbsp; Языки: ${top||'—'}<br>7 дней: ${recent}`;
-  } catch { el.textContent = 'Нет данных'; }
+  } catch { el.textContent = 'Пока нет переводов'; }
 }
 
 /* ============================================================
