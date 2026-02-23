@@ -587,6 +587,78 @@
     }
     .onboard-btn:active { opacity: 0.85; }
     .onboard-skip { margin-top: 12px; font-size: 0.75rem; color: var(--text3); cursor: pointer; text-decoration: underline; }
+
+    /* ===================== SOS КНОПКА ===================== */
+    .sos-btn {
+      position: fixed; bottom: 24px; right: 16px; z-index: 900;
+      width: 58px; height: 58px; border-radius: 50%; border: none;
+      background: var(--danger); color: #fff; font-size: 1.5rem;
+      box-shadow: 0 4px 20px rgba(var(--danger-rgb), 0.55);
+      cursor: pointer; transition: transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sos-btn:active { transform: scale(0.91); }
+    .sos-overlay {
+      position: fixed; inset: 0; z-index: 940;
+      background: rgba(0,0,0,0.45); display: none;
+    }
+    .sos-overlay.open { display: block; }
+    .sos-panel {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 950;
+      background: var(--bg1); border-radius: 20px 20px 0 0;
+      padding: 20px 16px 36px; transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+      max-height: 72vh; overflow-y: auto;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+    }
+    .sos-panel.open { transform: translateY(0); }
+    .sos-panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .sos-phrase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sos-phrase-btn {
+      padding: 14px 10px; border-radius: var(--radius-sm);
+      border: 1.5px solid rgba(var(--danger-rgb), 0.4);
+      background: rgba(var(--danger-rgb), 0.07);
+      color: var(--text); font-size: 0.82rem; cursor: pointer;
+      text-align: center; line-height: 1.4; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sos-phrase-btn:active { background: rgba(var(--danger-rgb), 0.22); }
+
+    /* ===================== ПРЕСЕТЫ КОНТЕКСТА ===================== */
+    .preset-btn {
+      padding: 5px 11px; border-radius: 20px;
+      border: 1px solid var(--border); background: transparent;
+      cursor: pointer; font-size: 1rem; line-height: 1;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .preset-btn.active { border-color: var(--accent1); background: rgba(var(--accent-rgb),0.15); }
+
+    /* ===================== ГОЛОС / СТАТИСТИКА ===================== */
+    .voice-select {
+      flex: 1; background: var(--bg2); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 5px 8px; font-size: 0.78rem; max-width: 100%;
+    }
+    .stats-detail {
+      font-size: 0.75rem; color: var(--text3);
+      line-height: 1.9; padding: 4px 0 2px;
+    }
+
+    /* ===================== MIC HOLD-TO-TALK ===================== */
+    .mic-btn { touch-action: none; }
+    .mic-btn.hold-hint::after {
+      content: ''; position: absolute; inset: -4px;
+      border-radius: 50%; border: 2px dashed rgba(255,255,255,0.5);
+      animation: hold-ring 0.8s infinite alternate;
+    }
+    @keyframes hold-ring {
+      from { opacity: 0.3; transform: scale(0.95); }
+      to   { opacity: 0.9; transform: scale(1.05); }
+    }
   </style>
 </head>
 <body>
@@ -648,8 +720,12 @@
 
       <!-- Микрофон -->
       <div class="record-wrap">
-        <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
-        <div class="record-hint" id="recordHint">Нажми для записи</div>
+        <button class="mic-btn" id="micBtn"
+          onpointerdown="micPointerDown(event)"
+          onpointerup="micPointerUp(event)"
+          onpointercancel="micPointerLeave(event)"
+          onpointerleave="micPointerLeave(event)">🎤</button>
+        <div class="record-hint" id="recordHint">Нажми или удержи для записи</div>
       </div>
 
       <!-- Текстовый ввод -->
@@ -702,9 +778,36 @@
           <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1" oninput="setVolume(this.value)" title="Громкость TTS" />
         </div>
 
+        <!-- Пресеты сцены -->
+        <div class="controls-row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
+          <span class="controls-label">Сцена:</span>
+          <button class="preset-btn" data-ctx="В аэропорту" onclick="setContextPreset(this)">✈️</button>
+          <button class="preset-btn" data-ctx="В отеле"     onclick="setContextPreset(this)">🏨</button>
+          <button class="preset-btn" data-ctx="В ресторане" onclick="setContextPreset(this)">🍽️</button>
+          <button class="preset-btn" data-ctx="На шопинге"  onclick="setContextPreset(this)">🛒</button>
+          <button class="preset-btn" data-ctx="В больнице"  onclick="setContextPreset(this)">🏥</button>
+          <button class="preset-btn" data-ctx=""            onclick="setContextPreset(this)" title="Сбросить">✕</button>
+        </div>
+
         <!-- Контекст ситуации -->
         <input class="context-input" id="contextInput" type="text"
           placeholder="📍 Контекст (необязательно): в ресторане, в аэропорту..." />
+
+        <!-- Голос TTS -->
+        <div class="controls-row" style="margin-top:6px">
+          <span class="controls-label">Голос:</span>
+          <select class="voice-select" id="voiceSelect" onchange="setVoice(this.value)">
+            <option value="">Авто</option>
+          </select>
+        </div>
+
+        <!-- Статистика -->
+        <div class="controls-row" style="margin-top:6px;cursor:pointer" onclick="toggleStats()">
+          <span class="controls-label">📊 Статистика</span>
+          <span id="statsSummary" style="font-size:0.78rem;color:var(--text3);margin-left:auto"></span>
+          <span style="font-size:0.75rem;color:var(--text3);margin-left:6px">▾</span>
+        </div>
+        <div class="stats-detail" id="statsDetail" style="display:none"></div>
 
       </div>
 
@@ -736,6 +839,7 @@
     <div class="card" id="chatCard" style="display:none">
       <div class="results-head">
         <span class="card-label">💬 История диалога</span>
+        <button class="icon-btn" onclick="exportChat()" title="Сохранить диалог">📥</button>
         <button class="icon-btn" onclick="clearChat()" title="Очистить чат">✕</button>
       </div>
       <div class="chat-view" id="chatView"></div>
@@ -786,6 +890,9 @@
         <span class="toggle-icon" id="histToggleIcon">▼</span>
       </div>
       <div class="history-body" id="historyBody" style="display:none">
+        <input class="context-input" id="historySearch" type="text"
+          placeholder="🔍 Поиск в истории..." oninput="filterHistory(this.value)"
+          style="margin-top:4px;margin-bottom:8px" />
         <div class="history-list" id="historyList"></div>
       </div>
     </div>
@@ -866,6 +973,9 @@ let favOpen          = false;
 let translationSeq   = 0;
 let currentAbort       = null;
 let displayAbort       = null; // для отмены транслитерации при навигации по истории
+let holdTimer          = null; // hold-to-talk таймер
+let holdMode           = false; // true когда пользователь удерживает кнопку
+let selectedVoiceName  = '';   // имя выбранного TTS-голоса ('' = авто)
 let autoMode           = 'off';
 let pendingAutoRestart = false;
 let autoRestartTimer   = null;
@@ -1046,6 +1156,36 @@ function toggleRecording() {
   if (document.getElementById('micBtn').classList.contains('busy')) return;
   if (isRecording) { recognition && recognition.stop(); }
   else { startRecording(); }
+}
+
+/* Hold-to-talk: удержание > 250ms = запись пока держишь, короткий тап = переключение */
+function micPointerDown(e) {
+  e.preventDefault();
+  const btn = document.getElementById('micBtn');
+  if (btn.classList.contains('busy')) return;
+  btn.setPointerCapture(e.pointerId);
+  holdTimer = setTimeout(() => {
+    holdMode = true;
+    btn.classList.add('hold-hint');
+    if (!isRecording) startRecording();
+  }, 250);
+}
+function micPointerUp(e) {
+  const btn = document.getElementById('micBtn');
+  btn.classList.remove('hold-hint');
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  if (holdMode) {
+    holdMode = false;
+    if (isRecording && recognition) recognition.stop();
+  } else {
+    toggleRecording();
+  }
+}
+function micPointerLeave(e) {
+  const btn = document.getElementById('micBtn');
+  btn.classList.remove('hold-hint');
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  if (holdMode && isRecording) { holdMode = false; recognition && recognition.stop(); }
 }
 
 function startRecording() {
@@ -1407,6 +1547,7 @@ async function doTranslate(text, fromCode, fromText = false) {
     lastSuccessTexts = successTexts;
     document.getElementById('repeatBtn').style.display = 'flex';
     trackApiWords(text, targets.length);
+    trackTranslation(resolvedFrom, successTexts.map(t => t.code));
     autoPlay(successTexts, true);
     // Добавляем в чат-историю в режиме диалога
     if (autoMode === 'dialog') {
@@ -1560,7 +1701,8 @@ function playNext() {
   const voices = window.speechSynthesis.getVoices();
   const prefix = item.speech.split('-')[0];
   const isMale = v => /male|мужской|man\b/i.test(v.name) && !/female|женский/i.test(v.name);
-  const voice  = voices.find(v => v.lang === item.speech && isMale(v))
+  const voice  = (selectedVoiceName && voices.find(v => v.name === selectedVoiceName))
+              || voices.find(v => v.lang === item.speech && isMale(v))
               || voices.find(v => v.lang.startsWith(prefix) && isMale(v))
               || voices.find(v => v.lang === item.speech)
               || voices.find(v => v.lang.startsWith(prefix));
@@ -1734,55 +1876,45 @@ function toggleHistory() {
   if (histOpen) renderHistory();
 }
 
+function buildHistoryItem(h) {
+  const fromLang = ALL_LANGS.find(l => l.code === h.fromCode);
+  const item     = document.createElement('div');
+  item.className = 'history-item';
+  const flag = document.createElement('span');
+  flag.className = 'history-flag';
+  flag.textContent = fromLang ? fromLang.flag : '🌐';
+  const textEl = document.createElement('span');
+  textEl.className = 'history-text';
+  textEl.textContent = h.text;
+  const langsEl = document.createElement('span');
+  langsEl.className   = 'history-langs';
+  langsEl.textContent = h.translations
+    ? '→ ' + h.translations.map(t => { const l = ALL_LANGS.find(x => x.code === t.code); return l ? l.flag : ''; }).join('')
+    : '';
+  const tsEl = document.createElement('span');
+  tsEl.className = 'history-ts';
+  tsEl.textContent = h.ts;
+  const delBtn = document.createElement('button');
+  delBtn.className = 'history-del'; delBtn.textContent = '✕'; delBtn.title = 'Удалить';
+  delBtn.onclick   = (e) => { e.stopPropagation(); deleteHistoryItem(h.id); };
+  item.appendChild(flag); item.appendChild(textEl); item.appendChild(langsEl); item.appendChild(tsEl); item.appendChild(delBtn);
+  item.onclick = () => replayFromHistory(h);
+  return item;
+}
+
 function renderHistory() {
   const list    = document.getElementById('historyList');
   const history = getHistory();
   list.innerHTML = '';
-
   if (!history.length) {
-    const empty = document.createElement('div');
-    empty.className = 'history-empty'; empty.textContent = 'История пуста';
-    list.appendChild(empty); return;
+    list.innerHTML = '<div class="history-empty">История пуста</div>';
+    return;
   }
-
-  history.forEach(h => {
-    const fromLang = ALL_LANGS.find(l => l.code === h.fromCode);
-    const item = document.createElement('div');
-    item.className = 'history-item';
-
-    const flag = document.createElement('span');
-    flag.className   = 'history-flag';
-    flag.textContent = fromLang ? fromLang.flag : '🌐';
-
-    const textEl = document.createElement('span');
-    textEl.className   = 'history-text';
-    textEl.textContent = h.text;
-
-    const langsEl = document.createElement('span');
-    langsEl.className   = 'history-langs';
-    langsEl.textContent = h.translations
-      ? '→ ' + h.translations.map(t => { const l = ALL_LANGS.find(x => x.code === t.code); return l ? l.flag : ''; }).join('')
-      : '';
-
-    const tsEl = document.createElement('span');
-    tsEl.className   = 'history-ts';
-    tsEl.textContent = h.ts;
-
-    const delBtn = document.createElement('button');
-    delBtn.className   = 'history-del';
-    delBtn.textContent = '✕';
-    delBtn.title       = 'Удалить';
-    delBtn.onclick     = (e) => { e.stopPropagation(); deleteHistoryItem(h.id); };
-
-    item.appendChild(flag); item.appendChild(textEl); item.appendChild(langsEl); item.appendChild(tsEl); item.appendChild(delBtn);
-    item.onclick = () => replayFromHistory(h);
-    list.appendChild(item);
-  });
-
+  history.forEach(h => list.appendChild(buildHistoryItem(h)));
   const clearBtn = document.createElement('button');
-  clearBtn.className   = 'history-clear-btn';
+  clearBtn.className = 'history-clear-btn';
   clearBtn.textContent = '🗑 Очистить всю историю';
-  clearBtn.onclick     = () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); };
+  clearBtn.onclick = () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); };
   list.appendChild(clearBtn);
 }
 
@@ -2063,6 +2195,16 @@ if ('serviceWorker' in navigator) {
 
   // Обновляем видимость избранного
   refreshFavCard();
+
+  // Восстанавливаем выбранный TTS-голос
+  selectedVoiceName = localStorage.getItem('lv_voice') || '';
+
+  // Голосовой список — Chrome грузит асинхронно
+  window.speechSynthesis.onvoiceschanged = populateVoiceSelect;
+  if (window.speechSynthesis.getVoices().length) populateVoiceSelect();
+
+  // Статистика использования
+  updateStatsSummary();
 })();
 
 /* ============================================================
@@ -2527,6 +2669,157 @@ function closeOnboarding() {
   const overlay = document.getElementById('onboardOverlay');
   if (overlay) overlay.classList.add('hidden');
 }
+
+/* ============================================================
+   SOS — ЭКСТРЕННЫЕ ФРАЗЫ
+============================================================ */
+function toggleSOSPanel() {
+  const panel   = document.getElementById('sosPanel');
+  const overlay = document.getElementById('sosOverlay');
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open', opening);
+  overlay.classList.toggle('open', opening);
+  if (opening) renderSOSPhrases();
+}
+function renderSOSPhrases() {
+  const grid = document.getElementById('sosPhraseGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  (PHRASES['🚨 Помощь'] || []).forEach(phrase => {
+    const btn = document.createElement('button');
+    btn.className   = 'sos-phrase-btn';
+    btn.textContent = phrase;
+    btn.onclick     = () => { toggleSOSPanel(); sendPhrase(phrase); };
+    grid.appendChild(btn);
+  });
+}
+
+/* ============================================================
+   ПРЕСЕТЫ КОНТЕКСТА
+============================================================ */
+function setContextPreset(btn) {
+  const ctx = btn.dataset.ctx;
+  document.getElementById('contextInput').value = ctx;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  if (ctx) btn.classList.add('active');
+}
+
+/* ============================================================
+   ПОИСК В ИСТОРИИ
+============================================================ */
+function filterHistory(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { renderHistory(); return; }
+  const list    = document.getElementById('historyList');
+  const history = getHistory();
+  const matched = history.filter(h =>
+    h.text.toLowerCase().includes(q) ||
+    h.translations?.some(t => (t.text || '').toLowerCase().includes(q))
+  );
+  list.innerHTML = '';
+  if (!matched.length) {
+    list.innerHTML = '<div class="history-empty">Ничего не найдено</div>';
+    return;
+  }
+  matched.forEach(h => list.appendChild(buildHistoryItem(h)));
+}
+
+/* ============================================================
+   СТАТИСТИКА ИСПОЛЬЗОВАНИЯ
+============================================================ */
+const STATS_KEY = 'lv_stats';
+function trackTranslation(fromCode, toCodes) {
+  try {
+    const s    = JSON.parse(localStorage.getItem(STATS_KEY) || '{"total":0,"langs":{},"days":{}}');
+    s.total    = (s.total || 0) + 1;
+    const day  = new Date().toISOString().slice(0, 10);
+    s.days[day] = (s.days[day] || 0) + 1;
+    toCodes.forEach(c => { s.langs[c] = (s.langs[c] || 0) + 1; });
+    // Храним только последние 90 дней
+    const allDays = Object.keys(s.days).sort();
+    if (allDays.length > 90) allDays.slice(0, allDays.length - 90).forEach(d => delete s.days[d]);
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+    updateStatsSummary();
+  } catch {}
+}
+function updateStatsSummary() {
+  const el = document.getElementById('statsSummary');
+  if (!el) return;
+  try {
+    const s = JSON.parse(localStorage.getItem(STATS_KEY) || '{"total":0}');
+    el.textContent = (s.total || 0) + ' переводов';
+  } catch {}
+}
+function toggleStats() {
+  const el   = document.getElementById('statsDetail');
+  if (!el) return;
+  const show = el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (!show) return;
+  try {
+    const s      = JSON.parse(localStorage.getItem(STATS_KEY) || '{"total":0,"langs":{},"days":{}}');
+    const top    = Object.entries(s.langs || {}).sort((a,b)=>b[1]-a[1]).slice(0,4)
+      .map(([c,n])=>{ const l=ALL_LANGS.find(x=>x.code===c); return `${l?l.flag:''}${l?l.name:c} ${n}`; }).join(' · ');
+    const days   = Object.keys(s.days||{}).sort().slice(-7);
+    const recent = days.map(d => d.slice(5) + ': ' + s.days[d]).join(' · ') || '—';
+    el.innerHTML = `Всего: <b>${s.total||0}</b> &nbsp;·&nbsp; Языки: ${top||'—'}<br>7 дней: ${recent}`;
+  } catch { el.textContent = 'Нет данных'; }
+}
+
+/* ============================================================
+   ЭКСПОРТ ДИАЛОГА
+============================================================ */
+function exportChat() {
+  const history = getChatHistory();
+  if (!history.length) { showError('Диалог пуст — нечего сохранять'); return; }
+  const lines = history.map(m => {
+    const oLang = ALL_LANGS.find(l => l.code === m.origCode);
+    const tLang = ALL_LANGS.find(l => l.code === m.translCode);
+    return `[${oLang ? oLang.name : m.origCode}] ${m.origText}\n` +
+           `[${tLang ? tLang.name : m.translCode}] ${m.translText}` +
+           (m.roman ? ` (${m.roman})` : '');
+  });
+  const content = `LinguaVox — диалог от ${new Date().toLocaleDateString('ru')}\n\n` + lines.join('\n\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `linguavox-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+}
+
+/* ============================================================
+   ВЫБОР ГОЛОСА TTS
+============================================================ */
+function populateVoiceSelect() {
+  const sel    = document.getElementById('voiceSelect');
+  if (!sel) return;
+  const voices = window.speechSynthesis.getVoices();
+  const prefix = foreignLang.split('-')[0];
+  const rel    = voices.filter(v => v.lang.startsWith(prefix));
+  sel.innerHTML = '<option value="">🔊 Авто</option>';
+  rel.forEach(v => {
+    const opt      = document.createElement('option');
+    opt.value      = v.name;
+    opt.textContent = v.name + (v.localService ? ' ✓' : '');
+    if (v.name === selectedVoiceName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+function setVoice(name) {
+  selectedVoiceName = name || '';
+  localStorage.setItem('lv_voice', selectedVoiceName);
+}
 </script>
+
+<!-- SOS: плавающая кнопка + bottom sheet -->
+<button class="sos-btn" onclick="toggleSOSPanel()" title="Экстренные фразы">🆘</button>
+<div class="sos-overlay" id="sosOverlay" onclick="toggleSOSPanel()"></div>
+<div class="sos-panel" id="sosPanel">
+  <div class="sos-panel-head">
+    <span class="card-label">🚨 Экстренные фразы</span>
+    <button class="icon-btn" onclick="toggleSOSPanel()">✕</button>
+  </div>
+  <div class="sos-phrase-grid" id="sosPhraseGrid"></div>
+</div>
 </body>
 </html>
