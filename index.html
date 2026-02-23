@@ -111,10 +111,10 @@
       border: 1px solid var(--border);
     }
     .tab {
-      flex: 1; padding: 11px 8px; border: none;
+      flex: 1; padding: 11px 6px; border: none;
       background: transparent; color: var(--text2);
       border-radius: var(--radius-sm); cursor: pointer;
-      font-size: 0.82rem; font-weight: 500;
+      font-size: 0.75rem; font-weight: 500;
       transition: all 0.25s; line-height: 1.3; text-align: center;
     }
     .tab.active {
@@ -626,6 +626,9 @@
       <button class="tab" id="tab-foreign" onclick="setMode('foreign')">
         Мне говорят<br>на другом языке
       </button>
+      <button class="tab" id="tab-auto" onclick="setMode('auto')">
+        🔄 Авто
+      </button>
     </div>
 
     <!-- БЛОК ВВОДА -->
@@ -750,6 +753,15 @@
             placeholder="🔍 Поиск по фразам..." oninput="filterPhrases(this.value)"
             style="margin-top:0;flex:1" />
           <button class="tone-btn" onclick="promptAddPhrase()" title="Добавить свою фразу" style="flex-shrink:0">＋ Добавить</button>
+        </div>
+        <div id="addPhraseRow" style="display:none;gap:8px;margin-bottom:8px;align-items:center">
+          <input class="context-input" id="addPhraseInput" type="text"
+            placeholder="Введите фразу..."
+            style="margin-top:0;flex:1"
+            onkeydown="if(event.key==='Enter') saveNewPhrase()" />
+          <button class="tone-btn" onclick="saveNewPhrase()" style="flex-shrink:0">✓</button>
+          <button class="tone-btn" onclick="toggleAddPhraseRow(false)"
+            style="flex-shrink:0;background:transparent;border-color:var(--border);color:var(--text3)">✕</button>
         </div>
         <div class="phrase-categories" id="phraseCategories"></div>
         <div class="phrase-list" id="phraseList"></div>
@@ -932,8 +944,10 @@ function setMode(m) {
   localStorage.setItem('mode', m);
   document.getElementById('tab-ru').classList.toggle('active', m === 'ru');
   document.getElementById('tab-foreign').classList.toggle('active', m === 'foreign');
+  document.getElementById('tab-auto').classList.toggle('active', m === 'auto');
   document.getElementById('langPillsLabel').textContent =
-    m === 'ru' ? 'На какой язык переводить:' : 'Язык собеседника:';
+    m === 'ru' ? 'На какой язык переводить' :
+    m === 'auto' ? 'Язык для авто-перевода' : 'Язык собеседника';
   updateSubtitle();
   resetUI();
 }
@@ -950,11 +964,12 @@ function selectForeignLang(btn) {
 function updateSubtitle() {
   const el = document.getElementById('headerSubtitle');
   if (!el) return;
+  const lang = ALL_LANGS.find(l => l.code === foreignCode);
   if (mode === 'ru') {
-    const lang = ALL_RU_TARGETS.find(l => l.code === foreignCode);
     el.textContent = lang ? `Рус → ${lang.flag} ${lang.name}` : 'Рус → ?';
+  } else if (mode === 'auto') {
+    el.textContent = lang ? `🇷🇺 Рус ↔ ${lang.flag} ${lang.name}` : 'Авто';
   } else {
-    const lang = ALL_LANGS.find(l => l.code === foreignCode);
     el.textContent = lang ? `${lang.flag} ${lang.name} → Рус` : '? → Рус';
   }
 }
@@ -1018,8 +1033,14 @@ function hideError() {
 /* ============================================================
    РАСПОЗНАВАНИЕ РЕЧИ
 ============================================================ */
-function getInputLang() { return mode === 'ru' ? 'ru-RU' : foreignLang; }
-function getInputCode() { return mode === 'ru' ? 'ru'    : foreignCode; }
+function getInputLang() {
+  if (mode === 'auto') return ''; // browser picks best multilingual model
+  return mode === 'ru' ? 'ru-RU' : foreignLang;
+}
+function getInputCode() {
+  if (mode === 'auto') return 'auto';
+  return mode === 'ru' ? 'ru' : foreignCode;
+}
 
 function toggleRecording() {
   if (document.getElementById('micBtn').classList.contains('busy')) return;
@@ -1264,9 +1285,23 @@ async function doTranslate(text, fromCode, fromText = false) {
   currentAbort = new AbortController();
   const signal = currentAbort.signal;
   const mySeq  = ++translationSeq;
-  const targets = mode === 'ru'
-    ? ALL_RU_TARGETS.filter(t => t.code === foreignCode)
-    : TARGETS.foreign;
+  // Auto mode: detect direction by script (Cyrillic → translate to foreign; other → translate to Russian)
+  let resolvedFrom = fromCode;
+  let targets;
+  if (mode === 'auto') {
+    const isCyrillic = /[\u0400-\u04FF]/.test(text);
+    if (isCyrillic) {
+      resolvedFrom = 'ru';
+      targets = ALL_RU_TARGETS.filter(t => t.code === foreignCode);
+    } else {
+      resolvedFrom = foreignCode;
+      targets = TARGETS.foreign;
+    }
+  } else {
+    targets = mode === 'ru'
+      ? ALL_RU_TARGETS.filter(t => t.code === foreignCode)
+      : TARGETS.foreign;
+  }
   const box = document.getElementById('translationsBox');
   box.innerHTML = '';
   document.getElementById('resultsCard').style.display = 'block';
@@ -1307,7 +1342,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   let translations = {};
   let quotaError   = false;
   try {
-    translations = await translateTexts(text, fromCode, targets.map(t => t.code), signal);
+    translations = await translateTexts(text, resolvedFrom, targets.map(t => t.code), signal);
   } catch(e) {
     if (e.name === 'AbortError') { document.getElementById('micBtn').classList.remove('busy'); return; }
     if (e.message === 'QUOTA_EXCEEDED') {
@@ -1370,7 +1405,7 @@ async function doTranslate(text, fromCode, fromText = false) {
       const firstTr = successTexts[0];
       const roman   = firstTr && NON_LATIN.has(firstTr.code)
         ? (document.getElementById(`translit-${firstTr.code}`)?.textContent || '') : '';
-      appendChatBubble(text, fromCode, firstTr?.text || '', firstTr?.code || '', roman);
+      appendChatBubble(text, resolvedFrom, firstTr?.text || '', firstTr?.code || '', roman);
     }
     setTimeout(() => {
       document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1382,7 +1417,7 @@ async function doTranslate(text, fromCode, fromText = false) {
       if (r) romanResults.set(code, r);
     }));
     if (mySeq === translationSeq) {
-      saveHistory(text, fromCode, successTexts.map(t => ({ ...t, roman: romanResults.get(t.code) || null })));
+      saveHistory(text, resolvedFrom, successTexts.map(t => ({ ...t, roman: romanResults.get(t.code) || null })));
     }
   } else if (fromText) {
     const inp = document.getElementById('textInput');
@@ -1603,7 +1638,7 @@ function scheduleAutoRestart() {
   hint.classList.add('live');
   autoRestartTimer = setTimeout(() => {
     autoRestartTimer = null;
-    if (autoMode === 'dialog') {
+    if (autoMode === 'dialog' && mode !== 'auto') {
       const next = mode === 'ru' ? 'foreign' : 'ru';
       mode = next;
       localStorage.setItem('mode', next);
@@ -1792,8 +1827,10 @@ function replayFromHistory(h) {
     mode = targetMode;
     document.getElementById('tab-ru').classList.toggle('active', mode === 'ru');
     document.getElementById('tab-foreign').classList.toggle('active', mode === 'foreign');
+    document.getElementById('tab-auto').classList.toggle('active', mode === 'auto');
     document.getElementById('langPillsLabel').textContent =
-      mode === 'ru' ? 'На какой язык переводить' : 'Язык собеседника';
+      mode === 'ru' ? 'На какой язык переводить' :
+      mode === 'auto' ? 'Язык для авто-перевода' : 'Язык собеседника';
   }
   // Восстанавливаем выбранный язык
   if (h.foreignCode) {
@@ -1932,8 +1969,13 @@ if ('serviceWorker' in navigator) {
 (function init() {
   // Восстанавливаем вкладку (режим)
   const savedMode = localStorage.getItem('mode') || 'ru';
-  if (savedMode !== 'ru') {
-    mode = savedMode;
+  if (savedMode === 'auto') {
+    mode = 'auto';
+    document.getElementById('tab-ru').classList.remove('active');
+    document.getElementById('tab-auto').classList.add('active');
+    document.getElementById('langPillsLabel').textContent = 'Язык для авто-перевода';
+  } else if (savedMode === 'foreign') {
+    mode = 'foreign';
     document.getElementById('tab-ru').classList.remove('active');
     document.getElementById('tab-foreign').classList.add('active');
     document.getElementById('langPillsLabel').textContent = 'Язык собеседника';
@@ -2257,12 +2299,23 @@ function removeCustomPhrase(phrase) {
   renderPhraseCategories();
   selectPhraseCategory('⭐ Мои фразы');
 }
+function toggleAddPhraseRow(show) {
+  const row = document.getElementById('addPhraseRow');
+  const inp = document.getElementById('addPhraseInput');
+  const visible = typeof show === 'boolean' ? show : row.style.display === 'none';
+  row.style.display = visible ? 'flex' : 'none';
+  if (visible) { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+}
+function saveNewPhrase() {
+  const inp = document.getElementById('addPhraseInput');
+  const phrase = inp.value.trim();
+  if (!phrase) { inp.focus(); return; }
+  addCustomPhrase(phrase);
+  toggleAddPhraseRow(false);
+}
 function promptAddPhrase() {
-  const phrase = prompt('Введите фразу для сохранения:');
-  if (phrase && phrase.trim()) {
-    if (!phrasebookOpen) togglePhrasebook();
-    addCustomPhrase(phrase.trim());
-  }
+  if (!phrasebookOpen) togglePhrasebook();
+  toggleAddPhraseRow(true);
 }
 function filterPhrases(query) {
   const q    = query.trim().toLowerCase();
