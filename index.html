@@ -1218,7 +1218,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   });
 
   if (quotaError) {
-    showError('Превышен лимит Gemini (15 запр/мин). Подождите ~1 минуту и попробуйте снова.');
+    showError('Превышен лимит запросов (30/мин). Подождите ~1 минуту и попробуйте снова.');
   }
 
   if (successTexts.length) {
