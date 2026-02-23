@@ -2,7 +2,12 @@
 // Принимает запросы в формате Gemini, конвертирует в Groq и обратно
 // Ключ хранится как секрет: GROQ_KEY (Settings → Variables and Secrets)
 // IP rate-limit: привяжи KV-namespace с именем KV (Workers → Settings → Bindings → KV)
-//   Лимит: 120 запросов с одного IP в час
+//   Лимит: 60 запросов с одного IP за 30 минут (= 120/час, окно скользящее)
+
+const ALLOWED_ORIGINS = [
+  'https://aiba20.github.io',
+];
+
 export default {
   async fetch(request, env) {
     const cors = {
@@ -16,24 +21,40 @@ export default {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
 
+    // Проверяем источник запроса (H1: защита от внешних скраперов)
+    const origin  = request.headers.get('Origin')  || '';
+    const referer = request.headers.get('Referer') || '';
+    const allowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o) || referer.startsWith(o));
+    if (!allowed) {
+      console.log(`[BLOCK] Forbidden origin="${origin}" referer="${referer}"`);
+      return new Response(JSON.stringify({
+        error: { code: 403, message: 'Forbidden', status: 'PERMISSION_DENIED' }
+      }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
     if (!env.GROQ_KEY) {
+      console.error('[ERROR] GROQ_KEY secret not set');
       return new Response(JSON.stringify({
         error: { code: 500, message: 'GROQ_KEY secret not set', status: 'INTERNAL' }
       }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
-    // IP rate limiting (работает если привязан KV namespace с именем KV)
+    // IP rate limiting — 60 запросов за 30 минут (M1: скользящее окно вместо часового)
     if (env.KV) {
-      const ip    = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const hour  = new Date().toISOString().slice(0, 13); // 'YYYY-MM-DDTHH'
-      const key   = `rl:${ip}:${hour}`;
-      const count = parseInt(await env.KV.get(key) || '0');
-      if (count >= 120) {
+      const ip      = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const now     = new Date();
+      // Ключ меняется каждые 30 мин: 'YYYY-MM-DDTHH:00' или 'YYYY-MM-DDTHH:30'
+      const half    = now.getUTCMinutes() < 30 ? '00' : '30';
+      const window  = now.toISOString().slice(0, 13) + ':' + half;
+      const key     = `rl:${ip}:${window}`;
+      const count   = parseInt(await env.KV.get(key) || '0');
+      if (count >= 60) {
+        console.log(`[RATE_LIMIT] ip=${ip} count=${count} window=${window}`);
         return new Response(JSON.stringify({
-          error: { code: 429, message: 'Слишком много запросов с вашего IP. Подождите час.', status: 'RESOURCE_EXHAUSTED' }
+          error: { code: 429, message: 'Слишком много запросов с вашего IP. Подождите до следующего получаса.', status: 'RESOURCE_EXHAUSTED' }
         }), { status: 429, headers: { ...cors, 'Content-Type': 'application/json' } });
       }
-      await env.KV.put(key, String(count + 1), { expirationTtl: 3600 });
+      await env.KV.put(key, String(count + 1), { expirationTtl: 1800 }); // TTL 30 мин
     }
 
     try {
@@ -61,7 +82,8 @@ export default {
       const groqData = await groqResp.json();
 
       if (!groqResp.ok) {
-        // Конвертируем ошибку Groq в формат Gemini
+        // L1: логируем ошибки Groq
+        console.error(`[GROQ_ERROR] status=${groqResp.status} message=${groqData.error?.message}`);
         return new Response(JSON.stringify({
           error: {
             code: groqResp.status,
@@ -78,6 +100,7 @@ export default {
       }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
 
     } catch (e) {
+      console.error(`[EXCEPTION] ${e.message}`);
       return new Response(JSON.stringify({
         error: { code: 500, message: e.message, status: 'INTERNAL' }
       }), { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } });
