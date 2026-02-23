@@ -2,7 +2,7 @@
 // чтобы пользователи получали обновление немедленно
 const CACHE_NAME = 'linguavox-v1';
 
-self.addEventListener('install', event => {
+self.addEventListener('install', () => {
   // Не делаем pre-caching — всегда берём актуальную версию из сети
   self.skipWaiting();
 });
@@ -21,7 +21,9 @@ self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API и внешние ресурсы — всегда из сети, не кэшируем
-  if (url.includes('generativelanguage.googleapis.com') || url.includes('fonts.google')) return;
+  if (url.includes('generativelanguage.googleapis.com') ||
+      url.includes('workers.dev') ||
+      url.includes('fonts.google')) return;
 
   // Стратегия: сеть первая → кэш обновляется → при офлайне отдаём кэш
   event.respondWith(

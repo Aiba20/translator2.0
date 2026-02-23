@@ -724,7 +724,7 @@
 
   <!-- ФУТЕР -->
   <footer>
-    Перевод: Gemini 2.0 Flash · Голос: браузерный TTS · Распознавание: Web Speech API<br>
+    Перевод: Groq Llama 3.3 · Голос: браузерный TTS · Распознавание: Web Speech API<br>
     <div id="wordCounter" class="word-counter"></div>
   </footer>
 
@@ -1095,9 +1095,9 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
     throw new Error('Ошибка сети: ' + resp.status);
   }
   const data    = await resp.json();
-  if (data.error) throw new Error(data.error.message || 'Ошибка API Gemini');
+  if (data.error) throw new Error(data.error.message || 'Ошибка API');
   const candidate = data.candidates?.[0];
-  if (!candidate) throw new Error('Gemini не вернул ответ (пустой candidates)');
+  if (!candidate) throw new Error('Пустой ответ от сервера перевода');
   if (candidate.finishReason === 'SAFETY') throw new Error('Gemini заблокировал запрос (SAFETY filter)');
   const content = candidate.content?.parts?.[0]?.text || '';
   if (!content) throw new Error('Gemini вернул пустой текст');
@@ -1135,6 +1135,7 @@ async function transliterateScript(text, langCode) {
 }
 
 async function doTranslate(text, fromCode, fromText = false) {
+  if (!navigator.onLine) { showError('Нет подключения к интернету.'); return; }
   const mySeq  = ++translationSeq;
   const targets = mode === 'ru'
     ? ALL_RU_TARGETS.filter(t => t.code === foreignCode)
@@ -1875,6 +1876,7 @@ function retranslateEdited() {
   if (!box) return;
   const text = (box.textContent || '').trim();
   if (!text) return;
+  if (document.getElementById('micBtn').classList.contains('busy')) return;
   box.classList.remove('empty');
   doTranslate(text, getInputCode(), true);
 }
@@ -2058,14 +2060,15 @@ function clearChat() {
   if (chatCard) chatCard.style.display = 'none';
 }
 function escapeHtml(t) {
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (!t) return '';
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 /* ============================================================
    ОНБОРДИНГ
 ============================================================ */
 const ONBOARD_STEPS = [
-  { icon: '🌐', title: 'Добро пожаловать!',  text: 'LinguaVox — карманный переводчик с ИИ Gemini. Разговорный стиль, мгновенный перевод, работает в путешествиях.' },
+  { icon: '🌐', title: 'Добро пожаловать!',  text: 'LinguaVox — карманный переводчик с ИИ Groq (Llama 3.3). Разговорный стиль, мгновенный перевод, работает в путешествиях.' },
   { icon: '🎤', title: 'Голосовой ввод',      text: 'Нажмите 🎤 и говорите по-русски. Перевод появится через секунду. Покажите телефон собеседнику.' },
   { icon: '💬', title: 'Режим диалога',       text: 'Включите режим 💬 — приложение будет само чередовать вас и собеседника. Не нужно нажимать кнопки!' },
   { icon: '📚', title: 'Фразовник',           text: 'Не знаете как начать? В фразовнике — готовые фразы для ресторана, аэропорта, гостиницы и экстренных случаев.' },
