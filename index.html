@@ -1165,9 +1165,13 @@ async function fetchWithRetry(url, options, attempts = 3) {
    КЭШ ПЕРЕВОДОВ (localStorage, до 200 записей)
 ============================================================ */
 function getCachedTranslation(text, from, codes) {
+  const key = `${from}|${[...codes].sort().join(',')}|${text}`;
   try {
     const cache = JSON.parse(localStorage.getItem(TR_CACHE_KEY) || '{}');
-    return cache[`${from}|${[...codes].sort().join(',')}|${text}`] || null;
+    if (cache[key]) return cache[key];
+    // Fallback: offline pre-seeded phrases (never evicted)
+    const offline = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+    return offline[key] || null;
   } catch { return null; }
 }
 function setCachedTranslation(text, from, codes, result) {
@@ -1279,12 +1283,6 @@ async function transliterateScript(text, langCode, signal) {
 }
 
 async function doTranslate(text, fromCode, fromText = false) {
-  if (!navigator.onLine) { showError('Нет подключения к интернету.'); return; }
-  // Отменяем предыдущий запрос если он ещё идёт
-  if (currentAbort) currentAbort.abort();
-  currentAbort = new AbortController();
-  const signal = currentAbort.signal;
-  const mySeq  = ++translationSeq;
   // Auto mode: detect direction by script (Cyrillic → translate to foreign; other → translate to Russian)
   let resolvedFrom = fromCode;
   let targets;
@@ -1302,6 +1300,16 @@ async function doTranslate(text, fromCode, fromText = false) {
       ? ALL_RU_TARGETS.filter(t => t.code === foreignCode)
       : TARGETS.foreign;
   }
+  // Offline guard — allow if the offline cache has this phrase
+  if (!navigator.onLine && !getCachedTranslation(text, resolvedFrom, targets.map(t => t.code))) {
+    showError('Нет подключения к интернету.');
+    return;
+  }
+  // Отменяем предыдущий запрос если он ещё идёт
+  if (currentAbort) currentAbort.abort();
+  currentAbort = new AbortController();
+  const signal = currentAbort.signal;
+  const mySeq  = ++translationSeq;
   const box = document.getElementById('translationsBox');
   box.innerHTML = '';
   document.getElementById('resultsCard').style.display = 'block';
@@ -1967,6 +1975,9 @@ if ('serviceWorker' in navigator) {
    ИНИЦИАЛИЗАЦИЯ UI
 ============================================================ */
 (function init() {
+  // Заполняем оффлайн-кэш фразовника (один раз при первом запуске)
+  initOfflineCache();
+
   // Восстанавливаем вкладку (режим)
   const savedMode = localStorage.getItem('mode') || 'ru';
   if (savedMode === 'auto') {
@@ -2170,6 +2181,66 @@ function speakFavorite(f) {
 /* ============================================================
    ФРАЗОВНИК
 ============================================================ */
+// Pre-translated phrases for offline use (version 1).
+// Each phrase maps to { ar, ar_roman, tr, en }.
+// Stored separately in lv_offline_phrases; never evicted by the live LRU cache.
+const OFFLINE_PHRASES_DATA = {
+  // ✈️ Аэропорт
+  'Где регистрация на рейс?':       { ar: 'أين مكتب تسجيل الوصول؟',        ar_roman: 'Ayna maktab tasjeel al-wusool?',      tr: 'Check-in nerede?',                      en: 'Where is the check-in counter?' },
+  'Где выход на посадку?':           { ar: 'أين بوابة الصعود؟',              ar_roman: 'Ayna bawwabat as-su\'ood?',           tr: 'Uçuş kapısı nerede?',                  en: 'Where is the boarding gate?' },
+  'Мой рейс задерживается':          { ar: 'رحلتي متأخرة',                   ar_roman: 'Rihlati muta\'akhkhira',              tr: 'Uçuşum gecikiyor',                      en: 'My flight is delayed' },
+  'Где забрать багаж?':              { ar: 'أين استلام الأمتعة؟',            ar_roman: 'Ayna istilaem al-amti\'a?',           tr: 'Bagaj teslim nerede?',                  en: 'Where is baggage claim?' },
+  'Я потерял багаж':                 { ar: 'فقدت أمتعتي',                    ar_roman: 'Faqadtu amti\'ati',                   tr: 'Bagajımı kaybettim',                    en: 'I lost my luggage' },
+  'Где паспортный контроль?':        { ar: 'أين مراقبة الجوازات؟',           ar_roman: 'Ayna muraqabat al-jawazat?',          tr: 'Pasaport kontrolü nerede?',             en: 'Where is passport control?' },
+  'У меня пересадка':                { ar: 'لدي رحلة مرور',                  ar_roman: 'Ladayya rihlat muroor',               tr: 'Aktarmalıyım',                          en: 'I have a connecting flight' },
+  'Сколько стоит такси до города?':  { ar: 'كم تكلفة التاكسي إلى المدينة؟', ar_roman: 'Kam taklufat at-taksi ilal-madina?', tr: 'Şehre taksi ne kadar?',                 en: 'How much is a taxi to the city?' },
+  // 🏨 Отель
+  'Я забронировал номер':                 { ar: 'لدي حجز',                         ar_roman: 'Ladayya hajz',                       tr: 'Rezervasyonum var',                 en: 'I have a reservation' },
+  'Когда можно заселиться?':              { ar: 'متى يمكنني تسجيل الوصول؟',        ar_roman: 'Mata yumkinuni tasjeel al-wusool?',  tr: 'Ne zaman check-in yapabilirim?',    en: 'When can I check in?' },
+  'Можно поздно выехать?':                { ar: 'هل يمكن تأخير المغادرة؟',          ar_roman: 'Hal yumkin ta\'kheer al-mughadara?', tr: 'Geç çıkış yapabilir miyim?',        en: 'Can I have a late check-out?' },
+  'Где лифт?':                            { ar: 'أين المصعد؟',                      ar_roman: 'Ayna al-mis\'ad?',                   tr: 'Asansör nerede?',                   en: 'Where is the elevator?' },
+  'Мне нужно дополнительное полотенце':   { ar: 'أحتاج منشفة إضافية',              ar_roman: 'Ahtaj manshafa idafiyya',            tr: 'Ekstra havlu lazım',                en: 'I need an extra towel' },
+  'Кондиционер не работает':              { ar: 'المكيف لا يعمل',                   ar_roman: 'Al-mukayyif la ya\'mal',             tr: 'Klima çalışmıyor',                  en: 'The air conditioning is not working' },
+  'Когда завтрак?':                       { ar: 'متى يكون الإفطار؟',               ar_roman: 'Mata yakoon al-iftar?',              tr: 'Kahvaltı saat kaçta?',              en: 'When is breakfast?' },
+  'Вызовите такси, пожалуйста':           { ar: 'أرجو استدعاء سيارة أجرة',         ar_roman: 'Arjoo istid\'a sayyarat ujra',       tr: 'Taksi çağırır mısınız?',            en: 'Please call a taxi' },
+  // 🍽️ Ресторан
+  'Столик на двоих, пожалуйста':  { ar: 'طاولة لشخصين من فضلك',   ar_roman: 'Tawila li-shakhsayn min fadlak', tr: 'İki kişilik masa lütfen',    en: 'A table for two, please' },
+  'Меню, пожалуйста':             { ar: 'القائمة من فضلك',          ar_roman: 'Al-qa\'ima min fadlak',         tr: 'Menü lütfen',                en: 'The menu, please' },
+  'Что вы рекомендуете?':         { ar: 'ماذا تنصح؟',              ar_roman: 'Madha tansah?',                 tr: 'Ne tavsiye edersiniz?',      en: 'What do you recommend?' },
+  'Я вегетарианец':               { ar: 'أنا نباتي',                ar_roman: 'Ana nabati',                    tr: 'Vejetaryenim',               en: 'I am vegetarian' },
+  'Без орехов, пожалуйста':       { ar: 'بدون مكسرات من فضلك',    ar_roman: 'Bidoon mukassarat min fadlak',   tr: 'Fındıksız lütfen',           en: 'No nuts, please' },
+  'Счёт, пожалуйста':             { ar: 'الحساب من فضلك',           ar_roman: 'Al-hisab min fadlak',           tr: 'Hesap lütfen',               en: 'The bill, please' },
+  'Это очень вкусно':             { ar: 'هذا لذيذ جداً',            ar_roman: 'Hadha ladheedh jiddan',         tr: 'Bu çok lezzetli',            en: 'This is very delicious' },
+  'Можно воды?':                  { ar: 'ممكن ماء؟',                ar_roman: 'Mumkin ma\'?',                  tr: 'Su alabilir miyim?',          en: 'Can I have some water?' },
+  // 🚕 Транспорт
+  'Отвезите меня в аэропорт':     { ar: 'خذني إلى المطار',                    ar_roman: 'Khudni ilal-matar',                    tr: 'Beni havalimanına götürün',        en: 'Take me to the airport' },
+  'Остановите здесь, пожалуйста': { ar: 'قف هنا من فضلك',                    ar_roman: 'Qif huna min fadlak',                  tr: 'Burada durun lütfen',             en: 'Stop here, please' },
+  'Сколько стоит поездка?':       { ar: 'كم تكلفة الرحلة؟',                  ar_roman: 'Kam taklufat ar-rihla?',               tr: 'Yolculuk ne kadar?',              en: 'How much is the ride?' },
+  'Где остановка автобуса?':      { ar: 'أين موقف الحافلة؟',                 ar_roman: 'Ayna mawqif al-hafila?',               tr: 'Otobüs durağı nerede?',           en: 'Where is the bus stop?' },
+  'Где метро?':                   { ar: 'أين المترو؟',                        ar_roman: 'Ayna al-metro?',                       tr: 'Metro nerede?',                   en: 'Where is the metro?' },
+  'Как доехать до центра?':       { ar: 'كيف أصل إلى وسط المدينة؟',         ar_roman: 'Kayfa asil ila wasat al-madina?',      tr: 'Merkeze nasıl gidebilirim?',      en: 'How do I get to the city center?' },
+  'Вызовите такси':               { ar: 'اطلب سيارة أجرة',                   ar_roman: 'Utlub sayyarat ujra',                  tr: 'Taksi çağırın',                   en: 'Call a taxi' },
+  'Мне нужно на вокзал':          { ar: 'أحتاج إلى الذهاب إلى المحطة',      ar_roman: 'Ahtaj ilal-muhatta',                   tr: 'Tren istasyonuna gitmem gerekiyor', en: 'I need to go to the train station' },
+  // 🛒 Покупки
+  'Сколько это стоит?':     { ar: 'كم سعر هذا؟',               ar_roman: 'Kam si\'r hadha?',                tr: 'Bu ne kadar?',                 en: 'How much does this cost?' },
+  'Дорого. Можно дешевле?': { ar: 'غالي. هل يمكن بسعر أقل؟',  ar_roman: 'Ghali. Hal yumkin bisir aqal?',  tr: 'Pahalı. Daha ucuz olur mu?',   en: 'Expensive. Can you make it cheaper?' },
+  'Я просто смотрю':        { ar: 'أنا أتفرج فقط',             ar_roman: 'Ana atafarraj faqat',            tr: 'Sadece bakıyorum',             en: 'I am just looking' },
+  'Есть размер меньше?':    { ar: 'هل يوجد مقاس أصغر؟',       ar_roman: 'Hal yujad miqas asgar?',         tr: 'Daha küçük beden var mı?',     en: 'Do you have a smaller size?' },
+  'Где примерочная?':       { ar: 'أين غرفة القياس؟',          ar_roman: 'Ayna ghurfat al-qiyas?',         tr: 'Soyunma odası nerede?',        en: 'Where is the fitting room?' },
+  'Я возьму это':           { ar: 'سآخذ هذا',                  ar_roman: 'Sa\'akhudh hadha',               tr: 'Bunu alıyorum',                en: 'I will take this' },
+  'Можно карточкой?':       { ar: 'هل يمكن الدفع ببطاقة؟',    ar_roman: 'Hal yumkin ad-daf\' bi-bitaqa?', tr: 'Kartla ödeyebilir miyim?',     en: 'Can I pay by card?' },
+  'Есть скидка?':           { ar: 'هل يوجد خصم؟',              ar_roman: 'Hal yujad khasm?',               tr: 'İndirim var mı?',              en: 'Is there a discount?' },
+  // 🚨 Помощь
+  'Вызовите скорую помощь':        { ar: 'اتصل بالإسعاف',             ar_roman: 'Ittasil bil-is\'af',             tr: 'Ambulans çağırın',            en: 'Call an ambulance' },
+  'Вызовите полицию':              { ar: 'اتصل بالشرطة',              ar_roman: 'Ittasil bish-shurta',            tr: 'Polisi arayın',               en: 'Call the police' },
+  'Мне плохо':                     { ar: 'أنا لا أشعر بالارتياح',     ar_roman: 'Ana la ash\'ur bil-irtiyah',     tr: 'Kendimi iyi hissetmiyorum',   en: 'I am not feeling well' },
+  'Я потерялся':                   { ar: 'لقد ضعت',                   ar_roman: 'Laqad da\'tu',                   tr: 'Kayboldum',                   en: 'I am lost' },
+  'Меня обокрали':                 { ar: 'تعرضت للسرقة',              ar_roman: 'Ta\'arradtu lis-siqa',           tr: 'Soyuldum',                    en: 'I was robbed' },
+  'Где больница?':                 { ar: 'أين المستشفى؟',             ar_roman: 'Ayna al-mustashfa?',             tr: 'Hastane nerede?',             en: 'Where is the hospital?' },
+  'Нужна помощь':                  { ar: 'أحتاج مساعدة',              ar_roman: 'Ahtaj musaada',                  tr: 'Yardıma ihtiyacım var',       en: 'I need help' },
+  'Позвоните в посольство России': { ar: 'اتصل بالسفارة الروسية',     ar_roman: 'Ittasil bis-sifara ar-rusiyya',  tr: 'Rus büyükelçiliğini arayın',  en: 'Call the Russian embassy' },
+};
+
 const PHRASES = {
   '✈️ Аэропорт': [
     'Где регистрация на рейс?','Где выход на посадку?','Мой рейс задерживается',
@@ -2299,6 +2370,26 @@ function removeCustomPhrase(phrase) {
   renderPhraseCategories();
   selectPhraseCategory('⭐ Мои фразы');
 }
+/* ============================================================
+   ОФФЛАЙН-КЭШ ФРАЗОВНИКА
+============================================================ */
+const OFFLINE_CACHE_KEY = 'lv_offline_phrases';
+const OFFLINE_CACHE_VER = '1';
+
+function initOfflineCache() {
+  if (localStorage.getItem('lv_offline_ready') === OFFLINE_CACHE_VER) return;
+  const cache = {};
+  Object.entries(OFFLINE_PHRASES_DATA).forEach(([phrase, t]) => {
+    if (t.ar) cache[`ru|ar|${phrase}`] = { ar: t.ar, ar_roman: t.ar_roman || '' };
+    if (t.tr) cache[`ru|tr|${phrase}`] = { tr: t.tr };
+    if (t.en) cache[`ru|en|${phrase}`] = { en: t.en };
+  });
+  try {
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem('lv_offline_ready', OFFLINE_CACHE_VER);
+  } catch {}
+}
+
 function toggleAddPhraseRow(show) {
   const row = document.getElementById('addPhraseRow');
   const inp = document.getElementById('addPhraseInput');
