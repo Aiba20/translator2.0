@@ -1,6 +1,5 @@
-// Меняй версию при каждом деплое на GitHub Pages
-// чтобы пользователи получали обновление немедленно
-const CACHE_NAME = 'linguavox-v2';
+// Обновляй CACHE_NAME при каждом деплое — deploy.bat делает это автоматически
+const CACHE_NAME = 'linguavox-20260223';
 
 self.addEventListener('install', () => {
   // Не делаем pre-caching — всегда берём актуальную версию из сети
@@ -21,8 +20,10 @@ self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API и внешние ресурсы — всегда из сети, не кэшируем
+  // L-01: добавлен fonts.gstatic (сами файлы .woff2 шрифтов)
   if (url.includes('workers.dev') ||
-      url.includes('fonts.google')) return;
+      url.includes('fonts.google') ||
+      url.includes('fonts.gstatic')) return;
 
   // Стратегия: сеть первая → кэш обновляется → при офлайне отдаём кэш
   event.respondWith(
@@ -34,6 +35,7 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      // Исправлено: возвращаем Response.error() если ресурса нет в кэше
+      .catch(() => caches.match(event.request).then(r => r || Response.error()))
   );
 });

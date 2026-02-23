@@ -1,0 +1,29 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    paths:
+      - 'worker.js'
+      - 'wrangler.toml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Worker to Cloudflare
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+
+# Настройка (один раз):
+# 1. Cloudflare Dashboard → My Profile → API Tokens → Create Token
+#    Шаблон: "Edit Cloudflare Workers" — дать права на Workers + KV
+# 2. GitHub → Settings → Secrets → Actions → New secret:
+#    CF_API_TOKEN = <токен из шага 1>
+#    CF_ACCOUNT_ID = <твой Account ID из Cloudflare Dashboard>
+# 3. В wrangler.toml заменить REPLACE_WITH_YOUR_KV_NAMESPACE_ID
+#    на реальный ID из Workers → KV → Namespaces

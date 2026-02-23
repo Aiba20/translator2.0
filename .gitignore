@@ -8,6 +8,10 @@ secrets.json
 # Зависимости
 node_modules/
 
+# Локальные файлы деплоя и документация (личные пути, архитектура)
+deploy.bat
+CONTEXT.md
+
 # Системные файлы
 .DS_Store
 Thumbs.db
