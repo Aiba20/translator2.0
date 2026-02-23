@@ -1,6 +1,6 @@
 // Меняй версию при каждом деплое на GitHub Pages
 // чтобы пользователи получали обновление немедленно
-const CACHE_NAME = 'linguavox-v1';
+const CACHE_NAME = 'linguavox-v2';
 
 self.addEventListener('install', () => {
   // Не делаем pre-caching — всегда берём актуальную версию из сети
