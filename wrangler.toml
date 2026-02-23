@@ -1,13 +1,11 @@
 name = "rough-cherry-2b43"
 main = "worker.js"
 compatibility_date = "2024-11-01"
+account_id = "804a52f11bdac9719bb57ee4df080aa3"
 
-# Secrets (не хранить здесь — добавить через wrangler secret put GROQ_KEY):
-# wrangler secret put GROQ_KEY
+# Secrets (не хранить здесь — добавить через: wrangler secret put GROQ_KEY)
 
 # KV namespace для rate limiting
-# Создать: wrangler kv:namespace create "KV"
-# Заменить id на реальный после создания
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "05c11844d9f743839dbec1fa2e26ae0d"
