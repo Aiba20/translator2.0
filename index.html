@@ -904,7 +904,7 @@
       </div>
       <div class="history-body" id="historyBody" style="display:none">
         <input class="context-input" id="historySearch" type="text"
-          placeholder="🔍 Поиск в истории..." oninput="filterHistory(this.value)"
+          placeholder="🔍 Поиск в истории..." oninput="filterHistoryDebounced(this.value)"
           style="margin-top:4px;margin-bottom:8px" />
         <div class="history-list" id="historyList"></div>
       </div>
@@ -995,6 +995,9 @@ let autoRestartTimer   = null;
 let phrasebookOpen     = false;
 let activePhraseCategory = null;
 let onboardStep        = 0;
+let _historyCache      = null;   // in-memory кэш истории (инвалидируется при записи)
+let _ttsResumeTimer    = null;   // setInterval для watchdog-resume TTS (очищается в stopTTS)
+let _filterHistoryTimer = null;  // дебаунс поиска по истории
 
 // Нелатинские языки — нужна транслитерация
 const NON_LATIN = new Set(['ar','ja','ko','hi','fa','he','zh-Hans','el']);
@@ -1061,10 +1064,8 @@ document.getElementById('themeBtn').addEventListener('click', () => {
 /* ============================================================
    РЕЖИМ
 ============================================================ */
-function setMode(m) {
-  if (isRecording) { recognition && recognition.stop(); }
-  mode = m;
-  localStorage.setItem('mode', m);
+// Обновляет вкладки и subtitle без сброса UI — используется в нескольких местах
+function _applyModeUI(m) {
   document.getElementById('tab-ru').classList.toggle('active', m === 'ru');
   document.getElementById('tab-foreign').classList.toggle('active', m === 'foreign');
   document.getElementById('tab-auto').classList.toggle('active', m === 'auto');
@@ -1072,6 +1073,13 @@ function setMode(m) {
     m === 'ru' ? 'На какой язык переводить' :
     m === 'auto' ? 'Язык для авто-перевода' : 'Язык собеседника';
   updateSubtitle();
+}
+
+function setMode(m) {
+  if (isRecording) { recognition && recognition.stop(); }
+  mode = m;
+  localStorage.setItem('mode', m);
+  _applyModeUI(m);
   resetUI();
 }
 function selectForeignLang(btn) {
@@ -1435,6 +1443,39 @@ async function transliterateScript(text, langCode, signal) {
   } catch { return null; }
 }
 
+function buildTranslationCardHTML(lang, showActions = false) {
+  const actStyle = showActions ? 'display:flex' : 'display:none';
+  const loadCls  = showActions ? '' : ' loading';
+  const loadTxt  = showActions ? '' : 'Переводим...';
+  return `
+      <div class="tr-card" id="card-${lang.code}">
+        <div class="tr-header">
+          <div class="tr-lang">
+            <span class="tr-flag">${lang.flag}</span>
+            <span class="tr-name">${lang.name}</span>
+          </div>
+        </div>
+        <div class="tr-text${loadCls}" id="text-${lang.code}" dir="${lang.rtl ? 'rtl' : 'ltr'}">${loadTxt}</div>
+        <div class="tr-translit" id="translit-${lang.code}"></div>
+        <div class="tr-actions" id="actions-${lang.code}" style="${actStyle}">
+          <button class="tr-btn play-btn" id="play-${lang.code}"
+            onclick="speakOne('${lang.code}', '${lang.speech}')">▶ Озвучить</button>
+          <button class="tr-btn copy-btn" id="copy-${lang.code}"
+            onclick="copyOne('${lang.code}')">📋 Копировать</button>
+          <button class="tr-btn fav-btn" id="fav-${lang.code}"
+            onclick="toggleFavorite('${lang.code}')">☆ Сохранить</button>
+          <button class="tr-btn more-btn" onclick="toggleSecondaryActions('${lang.code}')" title="Ещё">···</button>
+        </div>
+        <div class="tr-actions-secondary" id="secondary-${lang.code}">
+          <button class="tr-btn show-btn"
+            onclick="showFullscreen('${lang.code}')">👁 Показать</button>
+          <button class="tr-btn share-btn" id="share-${lang.code}"
+            onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
+        </div>
+      </div>
+    `;
+}
+
 async function doTranslate(text, fromCode, fromText = false) {
   // Auto mode: detect direction by script (Cyrillic → translate to foreign; other → translate to Russian)
   let resolvedFrom = fromCode;
@@ -1469,35 +1510,7 @@ async function doTranslate(text, fromCode, fromText = false) {
   document.getElementById('micBtn').classList.add('busy');
   document.getElementById('repeatBtn').style.display = 'none';
 
-  targets.forEach(lang => {
-    box.insertAdjacentHTML('beforeend', `
-      <div class="tr-card" id="card-${lang.code}">
-        <div class="tr-header">
-          <div class="tr-lang">
-            <span class="tr-flag">${lang.flag}</span>
-            <span class="tr-name">${lang.name}</span>
-          </div>
-        </div>
-        <div class="tr-text loading" id="text-${lang.code}" dir="${lang.rtl ? 'rtl' : 'ltr'}">Переводим...</div>
-        <div class="tr-translit" id="translit-${lang.code}"></div>
-        <div class="tr-actions" id="actions-${lang.code}" style="display:none">
-          <button class="tr-btn play-btn" id="play-${lang.code}"
-            onclick="speakOne('${lang.code}', '${lang.speech}')">▶ Озвучить</button>
-          <button class="tr-btn copy-btn" id="copy-${lang.code}"
-            onclick="copyOne('${lang.code}')">📋 Копировать</button>
-          <button class="tr-btn fav-btn" id="fav-${lang.code}"
-            onclick="toggleFavorite('${lang.code}')">☆ Сохранить</button>
-          <button class="tr-btn more-btn" onclick="toggleSecondaryActions('${lang.code}')" title="Ещё">···</button>
-        </div>
-        <div class="tr-actions-secondary" id="secondary-${lang.code}">
-          <button class="tr-btn show-btn"
-            onclick="showFullscreen('${lang.code}')">👁 Показать</button>
-          <button class="tr-btn share-btn" id="share-${lang.code}"
-            onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
-        </div>
-      </div>
-    `);
-  });
+  targets.forEach(lang => box.insertAdjacentHTML('beforeend', buildTranslationCardHTML(lang)));
 
   // Один batch-запрос для всех языков сразу
   let translations = {};
@@ -1616,33 +1629,7 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
     const saved = savedTranslations.find(t => t.code === lang.code);
     if (!saved) return;
 
-    box.insertAdjacentHTML('beforeend', `
-      <div class="tr-card" id="card-${lang.code}">
-        <div class="tr-header">
-          <div class="tr-lang">
-            <span class="tr-flag">${lang.flag}</span>
-            <span class="tr-name">${lang.name}</span>
-          </div>
-        </div>
-        <div class="tr-text" id="text-${lang.code}" dir="${lang.rtl ? 'rtl' : 'ltr'}"></div>
-        <div class="tr-translit" id="translit-${lang.code}"></div>
-        <div class="tr-actions" id="actions-${lang.code}" style="display:flex">
-          <button class="tr-btn play-btn" id="play-${lang.code}"
-            onclick="speakOne('${lang.code}', '${lang.speech}')">▶ Озвучить</button>
-          <button class="tr-btn copy-btn" id="copy-${lang.code}"
-            onclick="copyOne('${lang.code}')">📋 Копировать</button>
-          <button class="tr-btn fav-btn" id="fav-${lang.code}"
-            onclick="toggleFavorite('${lang.code}')">☆ Сохранить</button>
-          <button class="tr-btn more-btn" onclick="toggleSecondaryActions('${lang.code}')" title="Ещё">···</button>
-        </div>
-        <div class="tr-actions-secondary" id="secondary-${lang.code}">
-          <button class="tr-btn show-btn"
-            onclick="showFullscreen('${lang.code}')">👁 Показать</button>
-          <button class="tr-btn share-btn" id="share-${lang.code}"
-            onclick="shareTranslation('${lang.code}')">📤 Поделиться</button>
-        </div>
-      </div>
-    `);
+    box.insertAdjacentHTML('beforeend', buildTranslationCardHTML(lang, true));
 
     // Устанавливаем текст через JS (безопасно, нет XSS)
     const el = document.getElementById(`text-${lang.code}`);
@@ -1685,6 +1672,7 @@ function displaySavedTranslations(originalText, fromCode, modeKey, savedTranslat
 ============================================================ */
 function stopTTS() {
   window.speechSynthesis.cancel();
+  if (_ttsResumeTimer) { clearInterval(_ttsResumeTimer); _ttsResumeTimer = null; }
   ttsQueue = []; ttsPlaying = false;
   pendingAutoRestart = false;
   if (autoRestartTimer) { clearTimeout(autoRestartTimer); autoRestartTimer = null; }
@@ -1722,20 +1710,25 @@ function playNext() {
               || voices.find(v => v.lang.startsWith(prefix));
   if (voice) u.voice = voice;
 
-  const resumeTimer = setInterval(() => {
+  if (_ttsResumeTimer) clearInterval(_ttsResumeTimer);
+  _ttsResumeTimer = setInterval(() => {
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
   }, 500);
 
   const words    = Math.max(item.text.length / 4, item.text.split(/\s+/).length); // CJK-safe
   const timeout  = Math.max(words * 700, 8000) + 3000;
   const watchdog = setTimeout(() => {
-    clearInterval(resumeTimer);
+    if (_ttsResumeTimer) { clearInterval(_ttsResumeTimer); _ttsResumeTimer = null; }
     window.speechSynthesis.cancel();
     if (playBtn) playBtn.classList.remove('playing');
     setTimeout(playNext, 300);
   }, timeout);
 
-  const cleanup = () => { clearInterval(resumeTimer); clearTimeout(watchdog); if (playBtn) playBtn.classList.remove('playing'); };
+  const cleanup = () => {
+    if (_ttsResumeTimer) { clearInterval(_ttsResumeTimer); _ttsResumeTimer = null; }
+    clearTimeout(watchdog);
+    if (playBtn) playBtn.classList.remove('playing');
+  };
   u.onend  = () => { cleanup(); setTimeout(playNext, 400); };
   u.onerror = () => { cleanup(); setTimeout(playNext, 200); };
   window.speechSynthesis.speak(u);
@@ -1804,11 +1797,7 @@ function scheduleAutoRestart() {
       const next = mode === 'ru' ? 'foreign' : 'ru';
       mode = next;
       localStorage.setItem('mode', next);
-      document.getElementById('tab-ru').classList.toggle('active', next === 'ru');
-      document.getElementById('tab-foreign').classList.toggle('active', next === 'foreign');
-      document.getElementById('langPillsLabel').textContent =
-        next === 'ru' ? 'На какой язык переводить' : 'Язык собеседника';
-      updateSubtitle();
+      _applyModeUI(next);
     }
     navigator.vibrate && navigator.vibrate([40, 60, 40]);
     startRecording();
@@ -1863,11 +1852,14 @@ document.addEventListener('fullscreenchange', () => {
    ИСТОРИЯ — сохраняет переводы, воспроизводит БЕЗ API
 ============================================================ */
 function getHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
-  catch { return []; }
+  if (_historyCache) return _historyCache;
+  try { _historyCache = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+  catch { _historyCache = []; }
+  return _historyCache;
 }
 
 function saveHistory(text, fromCode, successTexts) {
+  _historyCache = null;
   const history = getHistory();
   if (history.length && history[0].text === text) return;
   history.unshift({
@@ -1926,7 +1918,7 @@ function renderHistory() {
   const clearBtn = document.createElement('button');
   clearBtn.className = 'history-clear-btn';
   clearBtn.textContent = '🗑 Очистить всю историю';
-  clearBtn.onclick = () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); };
+  clearBtn.onclick = () => { localStorage.removeItem(HISTORY_KEY); _historyCache = null; renderHistory(); };
   list.appendChild(clearBtn);
 }
 
@@ -1968,8 +1960,10 @@ function selectOtherLang(lang) {
 }
 
 function deleteHistoryItem(id) {
+  _historyCache = null;
   const history = getHistory().filter(h => h.id !== id);
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
+  _historyCache = null;
   renderHistory();
 }
 
@@ -1977,12 +1971,7 @@ function replayFromHistory(h) {
   const targetMode = h.mode || 'ru';
   if (targetMode !== mode) {
     mode = targetMode;
-    document.getElementById('tab-ru').classList.toggle('active', mode === 'ru');
-    document.getElementById('tab-foreign').classList.toggle('active', mode === 'foreign');
-    document.getElementById('tab-auto').classList.toggle('active', mode === 'auto');
-    document.getElementById('langPillsLabel').textContent =
-      mode === 'ru' ? 'На какой язык переводить' :
-      mode === 'auto' ? 'Язык для авто-перевода' : 'Язык собеседника';
+    _applyModeUI(targetMode);
   }
   // Восстанавливаем выбранный язык
   if (h.foreignCode) {
@@ -2080,10 +2069,8 @@ async function requestWakeLock() {
     wakeLock.addEventListener('release', () => { wakeLock = null; });
   } catch(e) {}
 }
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestWakeLock();
-});
-requestWakeLock();
+// Wake lock запрашивается только при старте записи (startRecording),
+// и освобождается при остановке (stopRecordingUI). Не держим экран весь сеанс.
 
 /* ============================================================
    ИНИЦИАЛИЗАЦИЯ ГОЛОСОВ
@@ -2303,18 +2290,32 @@ function toggleFavSection() {
   if (favOpen) renderFavorites();
 }
 function renderFavorites() {
-  const list  = document.getElementById('favList');
-  const favs  = getFavorites();
+  const list = document.getElementById('favList');
+  const favs = getFavorites();
   list.innerHTML = '';
   if (!favs.length) { list.innerHTML = '<div class="history-empty">Нет избранных</div>'; return; }
   favs.forEach(f => {
     const item = document.createElement('div');
     item.className = 'fav-item';
-    item.innerHTML = `
-      <span style="font-size:0.8rem;flex-shrink:0">${escapeHtml(f.langLabel || '')}</span>
-      <span class="fav-item-text">${escapeHtml(f.text || '')}</span>
-      <button class="fav-item-del" title="Удалить" onclick="event.stopPropagation();removeFavorite(${Number(f.id)})">✕</button>`;
-    item.onclick = () => speakFavorite(f);
+
+    const langSpan = document.createElement('span');
+    langSpan.style.cssText = 'font-size:0.8rem;flex-shrink:0';
+    langSpan.textContent = f.langLabel || '';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'fav-item-text';
+    textSpan.textContent = f.text || '';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'fav-item-del';
+    delBtn.title = 'Удалить';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', e => { e.stopPropagation(); removeFavorite(f.id); });
+
+    item.appendChild(langSpan);
+    item.appendChild(textSpan);
+    item.appendChild(delBtn);
+    item.addEventListener('click', () => speakFavorite(f));
     list.appendChild(item);
   });
 }
@@ -2717,6 +2718,11 @@ function setContextPreset(btn) {
 /* ============================================================
    ПОИСК В ИСТОРИИ
 ============================================================ */
+function filterHistoryDebounced(query) {
+  clearTimeout(_filterHistoryTimer);
+  _filterHistoryTimer = setTimeout(() => filterHistory(query), 200);
+}
+
 function filterHistory(query) {
   const q = query.trim().toLowerCase();
   if (!q) { renderHistory(); return; }
@@ -2795,7 +2801,9 @@ function exportChat() {
   const a    = document.createElement('a');
   a.href     = URL.createObjectURL(blob);
   a.download = `linguavox-${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a);
   a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 /* ============================================================
