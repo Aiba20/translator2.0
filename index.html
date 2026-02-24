@@ -1963,7 +1963,6 @@ function deleteHistoryItem(id) {
   _historyCache = null;
   const history = getHistory().filter(h => h.id !== id);
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
-  _historyCache = null;
   renderHistory();
 }
 
