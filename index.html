@@ -603,46 +603,6 @@
     .onboard-btn:active { opacity: 0.85; }
     .onboard-skip { margin-top: 12px; font-size: 0.75rem; color: var(--text3); cursor: pointer; text-decoration: underline; }
 
-    /* ===================== SOS КНОПКА ===================== */
-    .sos-btn {
-      position: fixed; bottom: 24px; right: 16px; z-index: 900;
-      width: 58px; height: 58px; border-radius: 50%; border: none;
-      background: var(--danger); color: #fff; font-size: 1.5rem;
-      box-shadow: 0 4px 20px rgba(var(--danger-rgb), 0.55);
-      cursor: pointer; transition: transform 0.15s;
-      -webkit-tap-highlight-color: transparent;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .sos-btn:active { transform: scale(0.91); }
-    .sos-overlay {
-      position: fixed; inset: 0; z-index: 940;
-      background: rgba(0,0,0,0.45); display: none;
-    }
-    .sos-overlay.open { display: block; }
-    .sos-panel {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 950;
-      background: var(--bg1); border-radius: 20px 20px 0 0;
-      padding: 20px 16px 36px; transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
-      max-height: 72vh; overflow-y: auto;
-      box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
-    }
-    .sos-panel.open { transform: translateY(0); }
-    .sos-panel-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .sos-phrase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .sos-phrase-btn {
-      padding: 14px 10px; border-radius: var(--radius-sm);
-      border: 1.5px solid rgba(var(--danger-rgb), 0.4);
-      background: rgba(var(--danger-rgb), 0.07);
-      color: var(--text); font-size: 0.82rem; cursor: pointer;
-      text-align: center; line-height: 1.4; transition: background 0.15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .sos-phrase-btn:active { background: rgba(var(--danger-rgb), 0.22); }
-
     /* ===================== ПРЕСЕТЫ КОНТЕКСТА ===================== */
     .preset-btn {
       padding: 5px 11px; border-radius: 20px;
@@ -2681,30 +2641,6 @@ function closeOnboarding() {
 }
 
 /* ============================================================
-   SOS — ЭКСТРЕННЫЕ ФРАЗЫ
-============================================================ */
-function toggleSOSPanel() {
-  const panel   = document.getElementById('sosPanel');
-  const overlay = document.getElementById('sosOverlay');
-  const opening = !panel.classList.contains('open');
-  panel.classList.toggle('open', opening);
-  overlay.classList.toggle('open', opening);
-  if (opening) renderSOSPhrases();
-}
-function renderSOSPhrases() {
-  const grid = document.getElementById('sosPhraseGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  (PHRASES['🚨 Помощь'] || []).forEach(phrase => {
-    const btn = document.createElement('button');
-    btn.className   = 'sos-phrase-btn';
-    btn.textContent = phrase;
-    btn.onclick     = () => { toggleSOSPanel(); sendPhrase(phrase); };
-    grid.appendChild(btn);
-  });
-}
-
-/* ============================================================
    ПРЕСЕТЫ КОНТЕКСТА
 ============================================================ */
 function setContextPreset(btn) {
@@ -2829,15 +2765,5 @@ function setVoice(name) {
 }
 </script>
 
-<!-- SOS: плавающая кнопка + bottom sheet -->
-<button class="sos-btn" onclick="toggleSOSPanel()" title="Экстренные фразы">🆘</button>
-<div class="sos-overlay" id="sosOverlay" onclick="toggleSOSPanel()"></div>
-<div class="sos-panel" id="sosPanel">
-  <div class="sos-panel-head">
-    <span class="card-label">🚨 Экстренные фразы</span>
-    <button class="icon-btn" onclick="toggleSOSPanel()">✕</button>
-  </div>
-  <div class="sos-phrase-grid" id="sosPhraseGrid"></div>
-</div>
 </body>
 </html>
