@@ -1,5 +1,5 @@
 // Обновляй CACHE_NAME при каждом деплое — deploy.bat делает это автоматически
-const CACHE_NAME = 'linguavox-20260223';
+const CACHE_NAME = 'linguavox-20260224';
 
 self.addEventListener('install', () => {
   // Не делаем pre-caching — всегда берём актуальную версию из сети
